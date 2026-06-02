@@ -1,17 +1,20 @@
 # dpsxhope
 
-> Practical AI engineering — RAG pipelines, LLM APIs, and agent workflows built from scratch.
+> **EN:** Practical AI engineering — RAG pipelines, LLM APIs, and agent workflows built from scratch.
+> **TH:** AI engineering จากของจริง — RAG pipeline, LLM API และ agent workflow ที่เขียนขึ้นเองทุกส่วน
 
-This repository contains production-oriented implementations of core AI engineering patterns.
+โปรเจกต์นี้รวม implementation ของ pattern หลักทาง AI engineering ที่เน้นการใช้งานจริงใน production
 Each module is self-contained, runnable, and built to demonstrate real understanding — not just framework usage.
 
 ---
 
-## Modules
+## Modules / โมดูล
 
 ### 1. `rag-pipeline/` — Retrieval-Augmented Generation
 
-A complete RAG system: ingest documents → embed → index → retrieve → generate → evaluate.
+**EN:** A complete RAG system: ingest documents → embed → index → retrieve → generate → evaluate.
+
+**TH:** ระบบ RAG ครบวงจร: นำเข้าเอกสาร → แปลงเป็น vector → สร้าง index → ค้นหา → สร้างคำตอบ → ประเมินผล
 
 ```
 Documents (.txt)
@@ -30,7 +33,7 @@ Evaluation (recall@k, faithfulness)
 ```bash
 cd rag-pipeline
 pip install -r requirements.txt
-cp .env.example .env   # add ANTHROPIC_API_KEY
+cp .env.example .env   # ใส่ ANTHROPIC_API_KEY
 
 python ingest.py --docs sample_docs/
 python query.py "What is RAG?"
@@ -41,14 +44,15 @@ python evaluate.py
 
 ### 2. `llm-eval/` — LLM API Client + Output Evaluation
 
-A unified client that works with both Anthropic Claude and Google Gemini,
-plus an evaluator that scores LLM output on relevance, faithfulness, and format compliance.
+**EN:** A unified client for Anthropic Claude and Google Gemini, plus an evaluator that scores LLM output on relevance, faithfulness, and format compliance.
 
-Features:
-- Provider-agnostic interface (swap Claude ↔ Gemini without changing logic)
-- Structured output extraction
-- Faithfulness scoring via LLM-as-judge
-- Request logging with token usage tracking
+**TH:** Client รวมสำหรับทั้ง Anthropic Claude และ Google Gemini พร้อม evaluator ที่วัดคุณภาพ output ใน 3 มิติ: ความเกี่ยวข้อง, ความน่าเชื่อถือ (hallucination check) และความถูกต้องของ format
+
+Features / ฟีเจอร์:
+- Provider-agnostic interface — สลับระหว่าง Claude และ Gemini โดยไม่ต้องแก้ logic หลัก
+- Structured output extraction — ดึงข้อมูลแบบ JSON schema
+- Faithfulness scoring via LLM-as-judge — ใช้ LLM ตรวจ LLM
+- Request logging with token usage — บันทึก log พร้อมการใช้ token
 
 ```bash
 cd llm-eval
@@ -61,12 +65,13 @@ python examples/structured_output.py
 
 ### 3. `agent-demo/` — Claude Agentic Loop (Tool Use)
 
-A working implementation of Claude's tool use API — the agent decides when to call tools
-and loops until it reaches a final answer.
+**EN:** A working implementation of Claude's tool use API — the agent decides when to call tools and loops until it reaches a final answer.
 
-Built-in tools:
-- `calculate` — safe math expression evaluator (no hallucinated numbers)
-- `text_search` — keyword search over local files
+**TH:** การใช้งาน tool use API ของ Claude จริงๆ — agent ตัดสินใจเองว่าจะเรียก tool ไหน แล้ว loop จนกว่าจะได้คำตอบสุดท้าย
+
+Built-in tools / เครื่องมือในตัว:
+- `calculate` — ประเมินนิพจน์คณิตศาสตร์อย่างปลอดภัย (ไม่มี hallucinated numbers)
+- `text_search` — ค้นหา keyword ใน local files
 
 ```bash
 cd agent-demo
@@ -77,43 +82,45 @@ python agent.py "What is sqrt(65536) and how many bits is that?"
 
 ---
 
-## Setup
+## Setup / การติดตั้ง
 
-Each module has its own `requirements.txt`. Create a `.env` file in the module directory:
+**EN:** Each module has its own `requirements.txt`. Create a `.env` file in the module directory:
+
+**TH:** แต่ละโมดูลมี `requirements.txt` ของตัวเอง สร้างไฟล์ `.env` ในโฟลเดอร์นั้น:
 
 ```env
 ANTHROPIC_API_KEY=sk-ant-...
-GEMINI_API_KEY=...          # only needed for llm-eval Gemini examples
+GEMINI_API_KEY=...          # สำหรับ llm-eval Gemini examples เท่านั้น
 ```
 
-Python 3.11+ recommended.
+Python 3.11+ recommended / แนะนำ Python 3.11 ขึ้นไป
 
 ---
 
-## Design Principles
+## Design Principles / หลักการออกแบบ
 
-- **No magic** — each file does one thing and is readable end-to-end
-- **Production-minded** — token logging, error handling, evaluation built in
-- **Provider flexibility** — not locked to a single LLM vendor
-- **Minimal dependencies** — only what's actually needed
+| EN | TH |
+|----|-----|
+| No magic — each file does one thing | ไม่ซ่อน logic — แต่ละไฟล์ทำสิ่งเดียว อ่านเข้าใจได้ทั้งหมด |
+| Production-minded — logging, eval built in | คิดแบบ production — มี logging และ evaluation ตั้งแต่ต้น |
+| Provider flexibility — not locked to one vendor | ไม่ผูกกับ vendor เดียว — เปลี่ยน LLM provider ได้ง่าย |
+| Minimal dependencies — only what's needed | dependency น้อย — ใช้เฉพาะที่จำเป็นจริงๆ |
 
 ---
 
-## Skills Demonstrated
+## Skills Demonstrated / ทักษะที่แสดง
 
-| Area | Implementation |
-|------|---------------|
-| RAG Pipeline | `rag-pipeline/` — full ingest → retrieve → generate cycle |
+| Area / ด้าน | Implementation |
+|-------------|---------------|
+| RAG Pipeline | `rag-pipeline/` — ingest → retrieve → generate ครบวงจร |
 | LLM API | `llm-eval/client.py` — Anthropic + Gemini unified client |
 | Prompt Design | structured output, few-shot, system prompts |
-| Agent / Tool Use | `agent-demo/agent.py` — agentic loop with function calling |
-| Evaluation | relevance · faithfulness · recall@k |
-| Logging / Monitoring | `llm-eval/logger.py` — JSONL logs with token tracking |
-| REST API | `ai-api/` — Express.js chat endpoint |
+| Agent / Tool Use | `agent-demo/agent.py` — agentic loop + function calling จริง |
+| Evaluation & Monitoring | relevance · faithfulness · recall@k · token logging |
 
 ---
 
-## Author
+## Author / ผู้สร้าง
 
-Daranpat Pattarakanpong (Shin)
-Strategic optimizer · AI engineer in practice
+**Daranpat Pattarakanpong (Shin)**
+Strategic optimizer · AI engineer in practice · building things that work
