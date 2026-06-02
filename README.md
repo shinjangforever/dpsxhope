@@ -6,8 +6,9 @@
 โปรเจกต์นี้รวม implementation ของ pattern หลักทาง AI engineering ที่เน้นการใช้งานจริงใน production
 Each module is self-contained, runnable, and built to demonstrate real understanding — not just framework usage.
 
-**Languages / ภาษาโปรแกรม:** Python · JavaScript (Node.js)  
-**LLM Providers / ผู้ให้บริการ:** Anthropic Claude · Google Gemini · Ollama (local) · LM Studio · Jan · llama.cpp · vLLM
+**Languages / ภาษาโปรแกรม:** Python · JavaScript · TypeScript · Go · Rust · Bash/Shell · SQL · YAML  
+**LLM Providers / ผู้ให้บริการ:** Anthropic Claude · Google Gemini · Ollama · llama.cpp · LM Studio · Jan · vLLM  
+**Domains / โดเมน:** AI Engineering · Robotics (ROS 2) · Quantum Computing · Cloud & Infrastructure
 
 ---
 
@@ -180,6 +181,35 @@ python unified_client.py "Explain embeddings"
 ```
 
 ดูรายละเอียดโมเดลและ VRAM requirements → [ENGINES.md](local-models/ENGINES.md)
+
+---
+
+### 6. `languages/` — Multi-language AI Examples
+
+**EN:** Same AI patterns implemented across multiple programming languages.  
+**TH:** pattern เดียวกัน เขียนด้วยหลายภาษา — เปรียบเทียบ trade-off แต่ละภาษาได้ทันที
+
+| File | Language | สิ่งที่แสดง |
+|------|----------|-----------|
+| `go/llm_client.go` | **Go** | LLM API client — fast, low memory, no runtime |
+| `rust/tokenizer.rs` | **Rust** | Token counting + text chunking — performance critical |
+| `typescript/client.ts` | **TypeScript** | Type-safe LLM client + structured output + streaming |
+| `bash/model_manager.sh` | **Bash/Shell** | Model management + health check + benchmarking |
+| `sql/ai_logs_schema.sql` | **SQL** | PostgreSQL schema — logging, eval, knowledge metadata |
+| `yaml/ai_stack.docker-compose.yml` | **YAML** | Full AI dev stack: Ollama + Postgres + Redis + API |
+
+---
+
+### 7. `domains/` — Applied AI in Specialized Fields
+
+**EN:** AI applied to robotics, quantum computing, and cloud infrastructure.  
+**TH:** AI ประยุกต์ใช้ใน robotics, quantum computing และ cloud infrastructure
+
+| Directory | สิ่งที่แสดง |
+|-----------|-----------|
+| `robotics/ros2_llm_bridge.py` | ROS 2 + LLM — แปลงภาษาธรรมชาติเป็น robot command |
+| `quantum/qiskit_intro.py` | Qiskit — Bell State, Grover Search, VQE + LLM explanation |
+| `cloud-infra/README.md` | Docker · K8s · Terraform · GitHub Actions · Prometheus |
 
 ---
 

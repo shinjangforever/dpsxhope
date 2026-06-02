@@ -1,0 +1,93 @@
+# ai_stack.docker-compose.yml — AI development stack
+# รัน: docker compose -f ai_stack.docker-compose.yml up -d
+#
+# Services: Ollama · PostgreSQL · Redis (cache) · dpsxhope ai-api
+
+services:
+
+  # ── Local LLM (Ollama) ─────────────────────────────────
+  ollama:
+    image: ollama/ollama:latest
+    container_name: ollama
+    restart: unless-stopped
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    environment:
+      - OLLAMA_NUM_PARALLEL=2
+      - OLLAMA_MAX_LOADED_MODELS=2
+    # GPU support (uncomment if NVIDIA GPU available)
+    # deploy:
+    #   resources:
+    #     reservations:
+    #       devices:
+    #         - driver: nvidia
+    #           count: all
+    #           capabilities: [gpu]
+
+  # ── PostgreSQL (AI logs + knowledge metadata) ──────────
+  postgres:
+    image: postgres:16-alpine
+    container_name: ai_postgres
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_DB: ai_logs
+      POSTGRES_USER: ai_user
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./languages/sql/ai_logs_schema.sql:/docker-entrypoint-initdb.d/01_schema.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ai_user -d ai_logs"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── Redis (response cache + rate limit state) ──────────
+  redis:
+    image: redis:7-alpine
+    container_name: ai_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis_data:/data
+
+  # ── ai-api (Node.js REST API) ──────────────────────────
+  ai_api:
+    build:
+      context: ./ai-api
+      dockerfile: Dockerfile
+    container_name: ai_api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY}
+      OLLAMA_URL: http://ollama:11434
+      DATABASE_URL: postgresql://ai_user:${POSTGRES_PASSWORD:-changeme}@postgres:5432/ai_logs
+      REDIS_URL: redis://redis:6379
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+      ollama:
+        condition: service_started
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+volumes:
+  ollama_data:
+  postgres_data:
+  redis_data:
+
+networks:
+  default:
+    name: ai_network
