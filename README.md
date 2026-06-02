@@ -1,14 +1,69 @@
 # dpsxhope
 
-> **EN:** Practical AI engineering — RAG pipelines, LLM APIs, agent workflows, local models, and REST APIs across Python and Node.js.
-> **TH:** AI engineering จากของจริง — RAG pipeline, LLM API, agent workflow, local models และ REST API เขียนด้วย Python และ Node.js
+> **EN:** Practical AI engineering — RAG pipelines, LLM APIs, agent workflows, engine control, and multi-language implementations.  
+> **TH:** AI engineering จากของจริง — RAG, LLM API, agent workflow, ควบคุม engine และ implementation หลายภาษา
 
-โปรเจกต์นี้รวม implementation ของ pattern หลักทาง AI engineering ที่เน้นการใช้งานจริงใน production
-Each module is self-contained, runnable, and built to demonstrate real understanding — not just framework usage.
+โปรเจกต์นี้รวม implementation ของ pattern หลักทาง AI engineering ที่เน้นการใช้งานจริง
+Each module is self-contained, runnable, and built to demonstrate real understanding.
 
-**Languages / ภาษาโปรแกรม:** Python · JavaScript · TypeScript · Go · Rust · Bash/Shell · SQL · YAML  
-**LLM Providers / ผู้ให้บริการ:** Anthropic Claude · Google Gemini · Ollama · llama.cpp · LM Studio · Jan · vLLM  
-**Domains / โดเมน:** AI Engineering · Robotics (ROS 2) · Quantum Computing · Cloud & Infrastructure
+**Languages / ภาษา:** Python · JavaScript · TypeScript · Go · Rust · Bash · SQL · YAML  
+**Engines / เครื่องยนต์:** Anthropic Claude · Gemini · Ollama · llama.cpp · LM Studio · Jan · vLLM  
+**Domains / โดเมน:** AI Engineering · Robotics (ROS 2) · Quantum · Cloud & Infrastructure
+
+---
+
+## System Overview / ภาพรวมระบบ
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                        dpsxhope                             │
+│                                                             │
+│  Input ──► Agent Workflows ──► Engine Controller            │
+│                │                      │                     │
+│           ┌────▼────┐         ┌───────▼────────┐           │
+│           │  Steps  │         │  Chat Format   │           │
+│           │classify │         │llama3/chatml/  │           │
+│           │research │         │gemma/deepseek  │           │
+│           │summarize│         └───────┬────────┘           │
+│           │evaluate │                 │                     │
+│           └────┬────┘         ┌───────▼────────┐           │
+│                │               │  LLM Engines   │           │
+│           ┌────▼────┐         │ ollama  :11434 │           │
+│           │  Tools  │         │ llamacpp:8080  │           │
+│           │calculate│         │ lmstudio:1234  │           │
+│           │t_search │         │ cloud API      │           │
+│           └─────────┘         └───────┬────────┘           │
+│                                       │                     │
+│  RAG Pipeline ◄── FAISS Index ◄── Embeddings               │
+│  SQL Logs  ◄── Evaluator ◄── Response                      │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Quick Start / เริ่มใช้งาน
+
+```bash
+# 1. Clone
+git clone https://github.com/shinjangforever/dpsxhope.git
+cd dpsxhope
+
+# 2. ตรวจสอบ engines ที่รันอยู่
+python local-models/engine/controller.py status
+
+# 3. เปิด Ollama + ดาวน์โหลดโมเดล
+python local-models/engine/controller.py start ollama
+python local-models/engine/controller.py pull llama3.2
+
+# 4. รัน RAG pipeline
+cd rag-pipeline && pip install -r requirements.txt
+python ingest.py --docs sample_docs/
+python query.py "What is RAG?"
+
+# 5. รัน agent workflow
+cd agent-demo
+python workflows/workflow_runner.py workflows/examples/research_workflow.json "Explain RAG"
+```
 
 ---
 
@@ -181,6 +236,134 @@ python unified_client.py "Explain embeddings"
 ```
 
 ดูรายละเอียดโมเดลและ VRAM requirements → [ENGINES.md](local-models/ENGINES.md)
+
+#### llama.cpp — คำสั่งครบชุด / Full Command Reference
+
+```bash
+# ── ติดตั้ง / Install ────────────────────────────────────────
+git clone --depth 1 https://github.com/ggml-org/llama.cpp
+cd llama.cpp
+
+# CPU only
+cmake -B build && cmake --build build -j$(nproc)
+
+# + AVX2 (Intel/AMD modern CPU — เร็วขึ้น ~30%)
+cmake -B build -DGGML_AVX2=ON && cmake --build build -j$(nproc)
+
+# + CUDA (NVIDIA GPU)
+cmake -B build -DGGML_CUDA=ON && cmake --build build -j$(nproc)
+
+# + Metal (Apple Silicon)
+cmake -B build -DGGML_METAL=ON && cmake --build build -j$(nproc)
+
+# + ROCm (AMD GPU)
+cmake -B build -DGGML_HIPBLAS=ON && cmake --build build -j$(nproc)
+
+# ARM / Raspberry Pi / Termux
+cmake -B build -DGGML_NEON=ON && cmake --build build -j4
+
+# ── Server (OpenAI-compatible API) ──────────────────────────
+./build/bin/llama-server -m model.gguf --port 8080
+
+# ปรับ thread + context size
+./build/bin/llama-server -m model.gguf -t 8 --ctx-size 8192 --port 8080
+
+# GPU layers (offload ไป GPU บางส่วน — ประหยัด RAM)
+./build/bin/llama-server -m model.gguf --n-gpu-layers 20 --port 8080
+
+# ── Chat CLI ────────────────────────────────────────────────
+./build/bin/llama-cli -m model.gguf --interactive -p "You are a helpful assistant."
+
+# one-shot
+./build/bin/llama-cli -m model.gguf -p "สวัสดี" -n 200 --no-display-prompt
+
+# ── Perplexity / Benchmark ──────────────────────────────────
+./build/bin/llama-perplexity -m model.gguf -f test.txt
+
+# throughput test
+./build/bin/llama-bench -m model.gguf -n 512 -ngl 0
+
+# ── Convert & Quantize ──────────────────────────────────────
+# HuggingFace → GGUF
+python convert_hf_to_gguf.py /path/to/model --outfile model.gguf
+
+# quantize (Q4_K_M แนะนำ)
+./build/bin/llama-quantize model-f16.gguf model-q4_k_m.gguf Q4_K_M
+
+# ── Embeddings server ───────────────────────────────────────
+./build/bin/llama-server -m embed-model.gguf --embeddings --port 8080
+
+# ── Script อัตโนมัติ (auto-detect arch) ─────────────────────
+bash local-models/llamacpp/server.sh /path/to/model.gguf 8080
+```
+
+---
+
+### 5.5 `local-models/engine/` — Engine Control + Chat Format
+
+**EN:** Programmatic control of all LLM engines + correct prompt formatting per model family.  
+**TH:** ควบคุม engine ทุกตัวด้วย code + จัด prompt format ให้ถูกต้องตามแต่ละโมเดล
+
+```bash
+# ── Engine Controller ────────────────────────────────────────
+python local-models/engine/controller.py status          # ตรวจทุก engine
+python local-models/engine/controller.py start ollama    # เปิด Ollama
+python local-models/engine/controller.py pull qwen2.5:7b # ดาวน์โหลดโมเดล
+python local-models/engine/controller.py switch llama3.2 qwen2.5:7b  # สลับโมเดล
+python local-models/engine/controller.py bench qwen2.5:7b            # benchmark
+python local-models/engine/controller.py stop ollama     # ปิด Ollama
+
+# ── Chat Format (prompt template ต่างกันต่างโมเดล) ───────────
+python local-models/engine/chat_format.py
+```
+
+**Chat Format families / รูปแบบ prompt ตามโมเดล:**
+
+| Format | โมเดล | Template style |
+|--------|--------|---------------|
+| **Llama 3** | llama3.x | `<\|start_header_id\|>role<\|end_header_id\|>` |
+| **ChatML** | Qwen · Phi · Mistral · OpenHermes | `<\|im_start\|>role\ncontent<\|im_end\|>` |
+| **Gemma** | gemma2 | `<start_of_turn>role\ncontent<end_of_turn>` |
+| **DeepSeek** | deepseek-r1 · deepseek-v2 | `User: ...\nAssistant: <think>` |
+| **Llama 2** | llama2 · codellama | `[INST] <<SYS>>\nsystem\n<</SYS>>\nuser [/INST]` |
+| **Alpaca** | WizardLM · Vicuna | `### Instruction:\n...\n### Response:` |
+
+---
+
+### 5.6 `agent-demo/workflows/` — Multi-Step Agent Workflows
+
+**EN:** Define and run multi-step agent workflows from JSON — each step can use different models, tools, and conditions.  
+**TH:** สร้างและรัน workflow หลาย step จาก JSON — แต่ละ step ใช้โมเดล, tools และเงื่อนไขต่างกันได้
+
+```bash
+# รัน research workflow (classify → research → summarize → recommend)
+python agent-demo/workflows/workflow_runner.py \
+  agent-demo/workflows/examples/research_workflow.json \
+  "How does vector search work?"
+
+# รัน RAG Q&A workflow (rephrase → retrieve → answer → evaluate)
+python agent-demo/workflows/workflow_runner.py \
+  agent-demo/workflows/examples/rag_qa_workflow.json \
+  "What is retrieval-augmented generation?"
+```
+
+**Workflow structure / โครงสร้าง workflow:**
+
+```json
+{
+  "name": "My Workflow",
+  "steps": [
+    {
+      "name": "step_name",
+      "system": "role prompt",
+      "prompt_template": "Do X with: {input} (prev: {prev_output})",
+      "model": "claude-haiku-4-5-20251001",
+      "tools": ["calculate", "text_search"],
+      "condition": "if_prev_success"
+    }
+  ]
+}
+```
 
 ---
 
