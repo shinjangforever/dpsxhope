@@ -1,10 +1,13 @@
 # dpsxhope
 
-> **EN:** Practical AI engineering — RAG pipelines, LLM APIs, and agent workflows built from scratch.
-> **TH:** AI engineering จากของจริง — RAG pipeline, LLM API และ agent workflow ที่เขียนขึ้นเองทุกส่วน
+> **EN:** Practical AI engineering — RAG pipelines, LLM APIs, agent workflows, local models, and REST APIs across Python and Node.js.
+> **TH:** AI engineering จากของจริง — RAG pipeline, LLM API, agent workflow, local models และ REST API เขียนด้วย Python และ Node.js
 
 โปรเจกต์นี้รวม implementation ของ pattern หลักทาง AI engineering ที่เน้นการใช้งานจริงใน production
 Each module is self-contained, runnable, and built to demonstrate real understanding — not just framework usage.
+
+**Languages / ภาษาโปรแกรม:** Python · JavaScript (Node.js)  
+**LLM Providers / ผู้ให้บริการ:** Anthropic Claude · Google Gemini · Ollama (local) · LM Studio · Jan · llama.cpp · vLLM
 
 ---
 
@@ -113,10 +116,70 @@ Python 3.11+ recommended / แนะนำ Python 3.11 ขึ้นไป
 | Area / ด้าน | Implementation |
 |-------------|---------------|
 | RAG Pipeline | `rag-pipeline/` — ingest → retrieve → generate ครบวงจร |
-| LLM API | `llm-eval/client.py` — Anthropic + Gemini unified client |
+| LLM API (Cloud) | `llm-eval/client.py` — Anthropic + Gemini unified client |
+| LLM API (Local) | `local-models/` — Ollama, LM Studio, Jan, llama.cpp, vLLM |
 | Prompt Design | structured output, few-shot, system prompts |
 | Agent / Tool Use | `agent-demo/agent.py` — agentic loop + function calling จริง |
 | Evaluation & Monitoring | relevance · faithfulness · recall@k · token logging |
+| REST API (Node.js) | `ai-api/` — Express + streaming + rate limit |
+
+---
+
+### 4. `ai-api/` — REST API with Node.js (JavaScript)
+
+**EN:** Express.js server exposing Claude as a REST API — single turn and streaming endpoints, with rate limiting.
+
+**TH:** Express.js server ที่ห่อ Claude เป็น REST API — รองรับทั้งแบบ single turn และ streaming พร้อม rate limit
+
+```
+POST /api/chat         → single response (JSON)
+POST /api/chat/stream  → streaming (Server-Sent Events)
+GET  /health           → status check
+```
+
+```bash
+cd ai-api
+npm install
+cp .env.example .env   # ใส่ ANTHROPIC_API_KEY
+
+npm run dev            # รัน dev server พร้อม --watch
+
+# ทดสอบ
+curl -X POST http://localhost:3000/api/chat \
+  -H "Content-Type: application/json" \
+  -d '{"message": "What is RAG?"}'
+```
+
+---
+
+### 5. `local-models/` — Local LLM Engines (Python)
+
+**EN:** Run LLMs locally — zero API cost, works offline. Unified client supporting Ollama, LM Studio, Jan, llama.cpp, and vLLM.
+
+**TH:** รัน LLM บนเครื่องตัวเอง — ไม่เสียค่า API, ทำงาน offline ได้ unified client รองรับ Ollama, LM Studio, Jan, llama.cpp และ vLLM
+
+Supported engines / engine ที่รองรับ:
+
+| Engine | Port | Interface |
+|--------|------|-----------|
+| Ollama | 11434 | Ollama API |
+| LM Studio | 1234 | OpenAI-compatible |
+| Jan | 1337 | OpenAI-compatible |
+| llama.cpp server | 8080 | OpenAI-compatible |
+| vLLM | 8000 | OpenAI-compatible |
+
+```bash
+cd local-models
+
+# Ollama (ติดตั้งก่อน: ollama.com)
+ollama pull llama3.2
+python ollama_client.py "อธิบาย RAG ให้หน่อย"
+
+# Unified client — เปลี่ยน provider ด้วย 1 บรรทัด
+python unified_client.py "Explain embeddings"
+```
+
+ดูรายละเอียดโมเดลและ VRAM requirements → [ENGINES.md](local-models/ENGINES.md)
 
 ---
 
