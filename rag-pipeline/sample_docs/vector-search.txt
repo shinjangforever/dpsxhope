@@ -1,0 +1,51 @@
+Vector Search and Embeddings
+
+What are Embeddings?
+An embedding is a dense vector (list of floating-point numbers) that represents
+the semantic meaning of text. Similar texts produce similar vectors (measured by
+cosine similarity or dot product). Embedding models are trained to place semantically
+related sentences close together in high-dimensional space.
+
+Common embedding models:
+- all-MiniLM-L6-v2 (fast, 384 dimensions, good general purpose)
+- text-embedding-3-small (OpenAI, 1536 dimensions)
+- voyage-2 (Anthropic-recommended, strong retrieval performance)
+
+Vector Databases
+A vector database stores embeddings alongside metadata and supports efficient
+approximate nearest-neighbor (ANN) search. Popular options:
+
+- FAISS (Facebook AI Similarity Search): local library, no server required,
+  very fast for in-memory search. Used in this project.
+- ChromaDB: open-source, easy to use, supports local and cloud modes.
+- Pinecone: managed cloud service, scales to billions of vectors.
+- Weaviate / Qdrant: open-source, support hybrid (dense + sparse) natively.
+
+Similarity Metrics
+- Cosine similarity: angle between vectors, range [-1, 1]. Standard for text.
+- Dot product: equivalent to cosine if vectors are normalized to unit length.
+- Euclidean (L2): distance in space. Less common for text embeddings.
+
+FAISS Index Types
+- IndexFlatIP: exact inner product search (cosine after normalization). No training.
+  Best for < 1M vectors where accuracy matters more than speed.
+- IndexIVFFlat: inverted file index, approximate. Faster for large datasets.
+- IndexHNSW: graph-based ANN, very fast queries, high recall.
+
+Hybrid Search
+Pure dense (vector) search can miss exact keyword matches. Hybrid search combines:
+1. Dense retrieval: semantic similarity via embeddings
+2. Sparse retrieval: keyword matching (BM25, TF-IDF)
+Results from both are fused using Reciprocal Rank Fusion (RRF) or learned weights.
+
+Reciprocal Rank Fusion (RRF)
+RRF merges ranked lists from multiple retrievers:
+    score(doc) = Σ 1 / (k + rank_i)
+where k is a constant (typically 60) and rank_i is the document's rank in list i.
+Documents appearing high in multiple lists receive higher fused scores.
+
+Re-ranking
+After initial retrieval, a cross-encoder model re-scores each (query, document) pair
+more accurately. Cross-encoders attend to both texts together (not separately like
+bi-encoders), producing better relevance scores at the cost of higher latency.
+Common model: cross-encoder/ms-marco-MiniLM-L-6-v2

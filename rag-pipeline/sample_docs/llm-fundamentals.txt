@@ -1,0 +1,45 @@
+Large Language Models — Fundamentals
+
+What is a Large Language Model (LLM)?
+A Large Language Model is a neural network trained on massive text corpora to predict
+the next token in a sequence. Through this objective, models learn grammar, facts,
+reasoning patterns, and even code. Modern LLMs (GPT-4, Claude, Gemini) contain
+hundreds of billions of parameters and are trained on trillions of tokens.
+
+Tokenization
+Text is broken into tokens before being fed to an LLM. A token is roughly 3-4 characters
+in English. The model never sees raw characters — it operates entirely on token IDs
+mapped through an embedding table to dense vectors.
+
+Context Window
+The context window is the maximum number of tokens an LLM can process in a single
+request (input + output combined). Larger windows (128k+ tokens) allow processing
+entire books, codebases, or long conversation histories.
+
+Temperature and Sampling
+- Temperature 0.0: deterministic, always picks the most probable next token (greedy).
+- Temperature > 0: samples from the probability distribution, introducing randomness.
+- Top-p (nucleus) sampling: restricts sampling to the smallest set of tokens whose
+  cumulative probability exceeds p.
+
+System Prompts
+A system prompt sets the model's persona, constraints, and instructions before the
+user turn. It is typically given higher weight than user messages and persists across
+all turns in a conversation.
+
+Prompt Caching
+Some providers (e.g., Anthropic) support caching the key-value (KV) representations
+of a long prompt prefix. Subsequent requests that share the same prefix skip
+recomputation, reducing latency by up to 85% and cutting costs significantly.
+
+Hallucination
+LLMs sometimes generate plausible-sounding but factually incorrect information.
+This happens because the model is optimizing for fluency, not factual accuracy.
+RAG (Retrieval-Augmented Generation) is one technique to ground responses in
+verified source documents and reduce hallucination.
+
+Tool Use / Function Calling
+Modern LLMs can be given a list of tool schemas (name, description, parameters).
+When appropriate, the model returns a tool_use block instead of text, indicating
+which tool to call and with what arguments. The application executes the tool and
+returns results back to the model, which then continues its response.
