@@ -9,10 +9,11 @@ public API: retrieve(query, top_k) -> list[retrieved dict]
 รัน: python retrieve.py "คำถามของฉัน"
 """
 import json
-import re
 import sys
+from pathlib import Path
 
 import config
+from textutil import tokenize
 
 # ---- import แบบ optional + degrade ----
 # faiss + sentence-transformers จำเป็นต่อ dense search (ถ้าไม่มีถือว่า dense ใช้ไม่ได้)
@@ -37,16 +38,6 @@ try:
     _RERANK_LIB_OK = True
 except Exception:  # pragma: no cover
     _RERANK_LIB_OK = False
-
-
-# ---- tokenizer ----
-# ต้องเหมือน ingest ฝั่ง BM25: lower + ตัดด้วย regex ที่ไม่ใช่ alphanumeric
-_TOKEN_RE = re.compile(r"[^a-z0-9]+")
-
-
-def tokenize(text: str) -> list[str]:
-    """แปลง text → list ของ token (lower + split ตัวที่ไม่ใช่ a-z0-9) ตัด token ว่างทิ้ง"""
-    return [t for t in _TOKEN_RE.split(text.lower()) if t]
 
 
 # ---- resource cache (module-level, lazy) ----
@@ -250,6 +241,9 @@ def retrieve(query: str, top_k: int = config.TOP_K) -> list:
 
     นี่คือ public API ที่ generate.py / evaluate.py เรียก (ชื่อ retrieve เป๊ะ)
     """
+    if not Path(config.META_PATH).exists():
+        return []
+
     dense_ranks = dense_search(query, config.CANDIDATE_K)
     sparse_ranks = sparse_search(query, config.CANDIDATE_K)
 

@@ -14,6 +14,7 @@ flow: ingest → retrieve → generate → eval
        python pipeline.py eval
 """
 import argparse
+import json
 
 from dotenv import load_dotenv
 
@@ -32,34 +33,51 @@ def cmd_ingest(args: argparse.Namespace) -> None:
     ingest.build_index(docs)
 
 
-def cmd_query(args: argparse.Namespace) -> None:
-    """retrieve + generate: โชว์ chunks ที่ดึง (พร้อม score) แล้วตามด้วยคำตอบ"""
+def ask(query: str, top_k: int = config.TOP_K) -> dict:
+    """API หลักสำหรับนำไปเรียกจากแอปอื่น คืนคำตอบพร้อมแหล่งอ้างอิง"""
     from retrieve import retrieve
     from generate import generate
 
-    query = args.text
-    print(f"\n🔍 query: {query}\n")
+    chunks = retrieve(query, top_k=top_k)
+    if not chunks:
+        raise SystemExit("ยังไม่มี index ให้รัน: python pipeline.py ingest --docs <โฟลเดอร์เอกสาร>")
 
-    chunks = retrieve(query)
-    print(f"retrieved {len(chunks)} chunks:")
-    for i, c in enumerate(chunks, 1):
-        # โชว์เลขอ้างอิง + score + source/heading + ตัวอย่างข้อความ
-        snippet = c["text"][:80].replace("\n", " ")
-        print(
-            f"  [{i}] score={c['score']:.3f} | "
-            f"{c['source']} | {c.get('heading', '')} | {snippet}..."
-        )
+    return {
+        "query": query,
+        "answer": generate(query, chunks),
+        "sources": [
+            {
+                "ref": i,
+                "source": c.get("source", ""),
+                "heading": c.get("heading", ""),
+                "score": round(float(c.get("score", 0)), 4),
+                "text": c.get("text", ""),
+            }
+            for i, c in enumerate(chunks, 1)
+        ],
+    }
 
-    print("\n⚙️  generating answer...\n")
-    answer = generate(query, chunks)
-    print(f"📝 answer:\n{answer}\n")
+
+def cmd_query(args: argparse.Namespace) -> None:
+    """ถามหนึ่งคำถาม แล้วแสดงแบบอ่านง่ายหรือ JSON"""
+    result = ask(args.text, top_k=args.top_k)
+    if args.json:
+        print(json.dumps(result, ensure_ascii=False, indent=2))
+        return
+
+    print(f"\n📝 answer:\n{result['answer']}\n")
+    print("sources:")
+    for item in result["sources"]:
+        print(f"  [{item['ref']}] score={item['score']:.3f} | {item['source']} | {item['heading']}")
 
 
 def cmd_eval(args: argparse.Namespace) -> None:
     """รันชุดประเมิน (delegate ไป evaluate.run_eval)"""
     import evaluate
 
-    evaluate.run_eval()
+    passed = evaluate.run_eval(args.cases, min_recall=args.min_recall, use_judge=not args.no_judge)
+    if not passed:
+        raise SystemExit(1)
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -73,17 +91,22 @@ def build_parser() -> argparse.ArgumentParser:
     # ingest
     p_ingest = sub.add_parser("ingest", help="โหลดเอกสาร + สร้าง index")
     p_ingest.add_argument(
-        "--docs", default="sample_docs/", help="โฟลเดอร์ที่เก็บไฟล์เอกสาร (.txt)"
+        "--docs", default="sample_docs/", help="โฟลเดอร์ที่เก็บ .txt, .md หรือ .pdf"
     )
     p_ingest.set_defaults(func=cmd_ingest)
 
     # query
     p_query = sub.add_parser("query", help="ถาม 1 คำถาม: retrieve + generate")
     p_query.add_argument("text", help="ข้อความคำถาม")
+    p_query.add_argument("--top-k", type=int, default=config.TOP_K, help="จำนวนแหล่งอ้างอิง")
+    p_query.add_argument("--json", action="store_true", help="แสดงผลเป็น JSON")
     p_query.set_defaults(func=cmd_query)
 
     # eval
     p_eval = sub.add_parser("eval", help="รันชุดประเมินคุณภาพ")
+    p_eval.add_argument("--cases", default="eval_cases.json", help="ไฟล์ชุดทดสอบ JSON")
+    p_eval.add_argument("--min-recall", type=float, default=0.0, help="คืน exit code 1 ถ้า recall ต่ำกว่าค่านี้")
+    p_eval.add_argument("--no-judge", action="store_true", help="ไม่เรียก LLM ตรวจ faithfulness")
     p_eval.set_defaults(func=cmd_eval)
 
     return parser

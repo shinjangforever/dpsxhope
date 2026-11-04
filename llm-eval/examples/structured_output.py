@@ -2,6 +2,11 @@
 ตัวอย่าง: บังคับให้ LLM ตอบเป็น JSON ที่มี schema ชัดเจน
 """
 import json
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from client import chat, Provider
 
 SYSTEM = """\

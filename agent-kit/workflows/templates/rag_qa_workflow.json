@@ -6,14 +6,12 @@
       "name": "rephrase",
       "system": "You are a query optimizer. Rephrase the user's question to improve retrieval quality. Reply with only the rephrased question, no explanation.",
       "prompt_template": "Rephrase for better document retrieval: {input}",
-      "model": "claude-haiku-4-5-20251001",
       "max_tokens": 128
     },
     {
       "name": "retrieve_and_answer",
       "system": "You are a RAG assistant. Search local documents for relevant context, then answer based only on what you find. If not found, say so clearly.",
       "prompt_template": "Find information about and answer: {prev_output}\n\nOriginal question: {input}",
-      "model": "claude-haiku-4-5-20251001",
       "max_tokens": 1024,
       "tools": ["text_search"],
       "condition": "if_prev_success"
@@ -22,7 +20,6 @@
       "name": "evaluate",
       "system": "You are an evaluator. Rate the answer quality. Reply with JSON: {\"score\": 0-10, \"faithful\": true/false, \"feedback\": \"string\"}",
       "prompt_template": "Question: {input}\nAnswer: {prev_output}\n\nEvaluate this answer.",
-      "model": "claude-haiku-4-5-20251001",
       "max_tokens": 256,
       "condition": "if_prev_success"
     }

@@ -1,0 +1,29 @@
+[
+  {
+    "question": "RAG คืออะไร?",
+    "expected_keywords": [
+      "retrieval",
+      "augmented",
+      "generation",
+      "context"
+    ]
+  },
+  {
+    "question": "vector search / embedding ทำงานยังไง?",
+    "expected_keywords": [
+      "embedding",
+      "vector",
+      "similarity",
+      "nearest"
+    ]
+  },
+  {
+    "question": "การ chunk เอกสารใน RAG ทำเพื่ออะไร?",
+    "expected_keywords": [
+      "chunk",
+      "overlap",
+      "size",
+      "context"
+    ]
+  }
+]

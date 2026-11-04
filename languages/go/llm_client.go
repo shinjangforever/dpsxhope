@@ -44,8 +44,13 @@ func Chat(prompt, system string) (string, int, int, error) {
 		return "", 0, 0, fmt.Errorf("ANTHROPIC_API_KEY not set")
 	}
 
+	model := os.Getenv("CLAUDE_MODEL")
+	if model == "" {
+		model = "claude-haiku-5-5"
+	}
+
 	body, _ := json.Marshal(Request{
-		Model:     "claude-haiku-4-5-20251001",
+		Model:     model,
 		MaxTokens: 1024,
 		System:    system,
 		Messages:  []Message{{Role: "user", Content: prompt}},

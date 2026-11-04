@@ -46,11 +46,11 @@ def chat(
 
     match provider:
         case Provider.ANTHROPIC:
-            return _anthropic(prompt, system, model or "claude-haiku-4-5-20251001", max_tokens)
+            return _anthropic(prompt, system, model or os.getenv("CLAUDE_MODEL", "claude-haiku-5-5"), max_tokens)
         case Provider.GEMINI:
-            return _gemini(prompt, system, model or "gemini-1.5-flash", max_tokens)
+            return _gemini(prompt, system, model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash"), max_tokens)
         case Provider.OLLAMA:
-            return _ollama(prompt, system, model or "llama3.2", base_url)
+            return _ollama(prompt, system, model or os.getenv("OLLAMA_MODEL", "llama3.2"), base_url)
         case Provider.OPENAI_COMPAT:
             return _openai_compat(prompt, system, model or "local-model", max_tokens, base_url)
         case _:
@@ -74,10 +74,14 @@ def _anthropic(prompt: str, system: str, model: str, max_tokens: int) -> Respons
 
 
 def _gemini(prompt: str, system: str, model: str, max_tokens: int) -> Response:
-    import google.generativeai as genai
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    m = genai.GenerativeModel(model_name=model, system_instruction=system)
-    resp = m.generate_content(prompt, generation_config={"max_output_tokens": max_tokens})
+    from google import genai
+    from google.genai import types
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    resp = client.models.generate_content(
+        model=model,
+        contents=prompt,
+        config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=max_tokens),
+    )
     return Response(text=resp.text, model=model, provider=Provider.GEMINI)
 
 
@@ -138,7 +142,7 @@ if __name__ == "__main__":
     prompt = " ".join(sys.argv[1:]) if len(sys.argv) > 1 else "Explain RAG in 2 sentences."
 
     for prov, model, url in [
-        (Provider.OLLAMA, "llama3.2", "http://localhost:11434"),
+        (Provider.OLLAMA, None, os.getenv("OLLAMA_URL", "http://localhost:11434")),
         # (Provider.OPENAI_COMPAT, "local-model", "http://localhost:1234"),  # LM Studio
         # (Provider.ANTHROPIC, None, None),   # ต้องมี ANTHROPIC_API_KEY
     ]:

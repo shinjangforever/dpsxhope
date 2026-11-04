@@ -2,7 +2,7 @@
 workflow_runner.py — รัน agent workflow แบบ multi-step
 workflow = ลำดับ steps ที่แต่ละ step ใช้ LLM + tools + เงื่อนไขแตกต่างกัน
 
-รัน: python workflow_runner.py examples/research_workflow.json "What is RAG?"
+รัน: python workflow_runner.py templates/research_workflow.json "What is RAG?"
 """
 from __future__ import annotations
 import json
@@ -11,9 +11,16 @@ import sys
 import time
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any, Callable, Optional
+from typing import Any, Optional
 
 import anthropic
+from dotenv import load_dotenv
+
+AGENT_ROOT = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(AGENT_ROOT))
+load_dotenv()
+
+import tools as registry
 
 # ── Data types ────────────────────────────────────────────────
 
@@ -22,10 +29,10 @@ class WorkflowStep:
     name: str
     system: str
     prompt_template: str       # ใช้ {input}, {prev_output}, {context}
-    model: str = "claude-haiku-4-5-20251001"
+    model: str = field(default_factory=lambda: os.getenv("CLAUDE_MODEL", "claude-haiku-5-5"))
     max_tokens: int = 1024
     tools: list[str] = field(default_factory=list)
-    condition: Optional[str] = None   # "always" | "if_prev_success" | python expr
+    condition: Optional[str] = None   # "always" | "if_prev_success"
 
 
 @dataclass
@@ -51,25 +58,6 @@ class WorkflowResult:
         return all(s.success for s in self.steps)
 
 
-# ── Built-in tools registry ───────────────────────────────────
-
-def _load_tools(tool_names: list[str]) -> tuple[list[dict], dict[str, Callable]]:
-    from agent_demo.tools.calculator import calculate, TOOL_SCHEMA as CALC
-    from agent_demo.tools.text_search import text_search, TOOL_SCHEMA as SEARCH
-
-    registry = {
-        "calculate": (calculate, CALC),
-        "text_search": (text_search, SEARCH),
-    }
-    schemas, handlers = [], {}
-    for name in tool_names:
-        if name in registry:
-            fn, schema = registry[name]
-            schemas.append(schema)
-            handlers[name] = fn
-    return schemas, handlers
-
-
 # ── Step executor ─────────────────────────────────────────────
 
 def run_step(
@@ -78,7 +66,9 @@ def run_step(
     prev_output: str = "",
     context: dict[str, Any] | None = None,
 ) -> StepResult:
-    client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
+    if not os.getenv("ANTHROPIC_API_KEY"):
+        raise SystemExit("ตั้ง ANTHROPIC_API_KEY ในไฟล์ .env ที่ root ของ repo ก่อน")
+    client = anthropic.Anthropic()
     ctx = context or {}
 
     prompt = step.prompt_template.format(
@@ -91,7 +81,9 @@ def run_step(
     try:
         if step.tools:
             # agentic loop
-            tool_schemas, tool_handlers = _load_tools(step.tools)
+            tools = registry.select(step.tools)
+            tool_schemas = [tool.schema for tool in tools.values()]
+            text = ""
             messages = [{"role": "user", "content": prompt}]
             total_tokens = 0
 
@@ -105,27 +97,22 @@ def run_step(
                 )
                 total_tokens += resp.usage.input_tokens + resp.usage.output_tokens
 
-                if resp.stop_reason == "end_turn":
-                    text = next(
-                        (b.text for b in resp.content if hasattr(b, "text")), ""
-                    )
+                if resp.stop_reason != "tool_use":
+                    text = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text")
                     break
-                if resp.stop_reason == "tool_use":
-                    messages.append({"role": "assistant", "content": resp.content})
-                    results = []
-                    for block in resp.content:
-                        if block.type != "tool_use":
-                            continue
-                        fn = tool_handlers.get(block.name)
-                        result = fn(**block.input) if fn else {"error": "unknown tool"}
-                        results.append({
-                            "type": "tool_result",
-                            "tool_use_id": block.id,
-                            "content": json.dumps(result),
-                        })
-                    messages.append({"role": "user", "content": results})
-            else:
-                text = ""
+                messages.append({"role": "assistant", "content": resp.content})
+                results = []
+                for block in resp.content:
+                    if block.type != "tool_use":
+                        continue
+                    result = registry.run(tools, block.name, block.input)
+                    results.append({
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": json.dumps(result, ensure_ascii=False),
+                        "is_error": "error" in result,
+                    })
+                messages.append({"role": "user", "content": results})
         else:
             resp = client.messages.create(
                 model=step.model,
@@ -133,7 +120,7 @@ def run_step(
                 system=step.system,
                 messages=[{"role": "user", "content": prompt}],
             )
-            text = resp.content[0].text
+            text = "".join(b.text for b in resp.content if getattr(b, "type", None) == "text")
             total_tokens = resp.usage.input_tokens + resp.usage.output_tokens
 
         return StepResult(
@@ -199,7 +186,7 @@ def run_workflow(
 # ── Load workflow from JSON ───────────────────────────────────
 
 def load_workflow(path: str) -> tuple[str, list[WorkflowStep]]:
-    data = json.loads(Path(path).read_text())
+    data = json.loads(Path(path).read_text(encoding="utf-8"))
     steps = [WorkflowStep(**s) for s in data["steps"]]
     return data.get("name", path), steps
 
@@ -209,7 +196,7 @@ def load_workflow(path: str) -> tuple[str, list[WorkflowStep]]:
 if __name__ == "__main__":
     if len(sys.argv) < 3:
         print("Usage: python workflow_runner.py <workflow.json> <input>")
-        print("Example: python workflow_runner.py examples/research_workflow.json 'What is RAG?'")
+        print("Example: python workflow_runner.py templates/research_workflow.json 'What is RAG?'")
         sys.exit(1)
 
     wf_path = sys.argv[1]

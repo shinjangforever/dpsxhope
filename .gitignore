@@ -21,5 +21,7 @@ Thumbs.db
 
 # Data
 *.faiss
+rag-pipeline/data/
+logs/
 *.index
 chroma_db/

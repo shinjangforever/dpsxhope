@@ -16,6 +16,7 @@ load_dotenv()
 class Provider(str, Enum):
     ANTHROPIC = "anthropic"
     GEMINI = "gemini"
+    OLLAMA = "ollama"
 
 
 @dataclass
@@ -38,10 +39,13 @@ def chat(
     """ส่ง prompt ไปยัง LLM และรับ response กลับ"""
 
     if provider == Provider.ANTHROPIC:
-        return _anthropic_chat(prompt, system, model or "claude-haiku-4-5-20251001", max_tokens)
+        return _anthropic_chat(prompt, system, model or os.getenv("CLAUDE_MODEL", "claude-haiku-5-5"), max_tokens)
 
     if provider == Provider.GEMINI:
-        return _gemini_chat(prompt, system, model or "gemini-1.5-flash", max_tokens)
+        return _gemini_chat(prompt, system, model or os.getenv("GEMINI_MODEL", "gemini-3.5-flash"), max_tokens)
+
+    if provider == Provider.OLLAMA:
+        return _ollama_chat(prompt, system, model or os.getenv("OLLAMA_MODEL", "llama3.2"), max_tokens)
 
     raise ValueError(f"Unknown provider: {provider}")
 
@@ -64,13 +68,44 @@ def _anthropic_chat(prompt: str, system: str, model: str, max_tokens: int) -> LL
     )
 
 
+def _ollama_chat(prompt: str, system: str, model: str, max_tokens: int) -> LLMResponse:
+    import json
+    import urllib.request
+
+    payload = json.dumps({
+        "model": model,
+        "stream": False,
+        "think": False,
+        "options": {"num_predict": max_tokens},
+        "messages": [
+            {"role": "system", "content": system},
+            {"role": "user", "content": prompt},
+        ],
+    }).encode()
+    request = urllib.request.Request(
+        f"{os.getenv('OLLAMA_URL', 'http://localhost:11434')}/api/chat",
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(request, timeout=int(os.getenv("OLLAMA_TIMEOUT", 300))) as response:
+        data = json.load(response)
+    return LLMResponse(
+        text=data["message"]["content"],
+        input_tokens=data.get("prompt_eval_count", 0),
+        output_tokens=data.get("eval_count", 0),
+        model=model,
+        provider=Provider.OLLAMA,
+    )
+
+
 def _gemini_chat(prompt: str, system: str, model: str, max_tokens: int) -> LLMResponse:
-    import google.generativeai as genai
-    genai.configure(api_key=os.environ["GEMINI_API_KEY"])
-    m = genai.GenerativeModel(model_name=model, system_instruction=system)
-    resp = m.generate_content(
-        prompt,
-        generation_config={"max_output_tokens": max_tokens},
+    from google import genai
+    from google.genai import types
+    client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+    resp = client.models.generate_content(
+        model=model,
+        contents=prompt,
+        config=types.GenerateContentConfig(system_instruction=system, max_output_tokens=max_tokens),
     )
     text = resp.text
     usage = resp.usage_metadata
