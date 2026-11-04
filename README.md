@@ -1,402 +1,126 @@
-# dpsxhope
+<p align="center">
+  <img src="assets/banner/banner.png" alt="dpsxhope: แผนที่ความรู้และต้นแบบ AI ที่ใช้งานได้จริง" width="100%">
+</p>
 
-> **EN:** Practical AI engineering — RAG pipelines, LLM APIs, agent workflows, engine control, and multi-language implementations.  
-> **TH:** AI engineering จากของจริง — RAG, LLM API, agent workflow, ควบคุม engine และ implementation หลายภาษา
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/code-MIT-c9a227" alt="Code license: MIT"></a>
+  <a href="LICENSE-CONTENT.md"><img src="https://img.shields.io/badge/content-CC%20BY%204.0-c9a227" alt="Content license: CC BY 4.0"></a>
+  <img src="https://img.shields.io/badge/python-3.11%2B-111111" alt="Python 3.11+">
+  <img src="https://img.shields.io/badge/node-20%2B-111111" alt="Node.js 20+">
+  <img src="https://img.shields.io/badge/status-building-111111" alt="Status: building">
+</p>
 
-โปรเจกต์นี้รวม implementation ของ pattern หลักทาง AI engineering ที่เน้นการใช้งานจริง
-Each module is self-contained, runnable, and built to demonstrate real understanding.
+<p align="center">
+  <a href="#เริ่มใน-5-นาที">เริ่มใน 5 นาที</a> ·
+  <a href="#เลือกต้นแบบ">เลือกต้นแบบ</a> ·
+  <a href="BLUEPRINTS.md">นำไปใช้จริง</a> ·
+  <a href="ROADMAP.md">Roadmap</a> ·
+  <a href="README.en.md">English</a>
+</p>
 
-**Languages / ภาษา:** Python · JavaScript · TypeScript · Go · Rust · Bash · SQL · YAML  
-**Engines / เครื่องยนต์:** Anthropic Claude · Gemini · Ollama · llama.cpp · LM Studio · Jan · vLLM  
-**Domains / โดเมน:** AI Engineering · Robotics (ROS 2) · Quantum · Cloud & Infrastructure
+**dpsxhope** คือคู่มือและชุดต้นแบบ AI engineering ภาษาไทย สำหรับนำไปปรับใช้กับเอกสาร ระบบ และงานจริงของคุณ
 
----
+เนื้อหาเริ่มจาก RAG, agent, การประเมินผล และ AI API แล้วจะขยายเป็นแผนที่ความรู้ที่เชื่อม AI กับ robotics, anatomy, biology, quantum, business, games, sports และ 3D
 
-## System Overview / ภาพรวมระบบ
+## เลือกต้นแบบ
 
-```
-┌─────────────────────────────────────────────────────────────┐
-│                        dpsxhope                             │
-│                                                             │
-│  Input ──► Agent Workflows ──► Engine Controller            │
-│                │                      │                     │
-│           ┌────▼────┐         ┌───────▼────────┐           │
-│           │  Steps  │         │  Chat Format   │           │
-│           │classify │         │llama3/chatml/  │           │
-│           │research │         │gemma/deepseek  │           │
-│           │summarize│         └───────┬────────┘           │
-│           │evaluate │                 │                     │
-│           └────┬────┘         ┌───────▼────────┐           │
-│                │               │  LLM Engines   │           │
-│           ┌────▼────┐         │ ollama  :11434 │           │
-│           │  Tools  │         │ llamacpp:8080  │           │
-│           │calculate│         │ lmstudio:1234  │           │
-│           │t_search │         │ cloud API      │           │
-│           └─────────┘         └───────┬────────┘           │
-│                                       │                     │
-│  RAG Pipeline ◄── FAISS Index ◄── Embeddings               │
-│  SQL Logs  ◄── Evaluator ◄── Response                      │
-└─────────────────────────────────────────────────────────────┘
-```
+| ต้องการสร้าง | ต้นแบบ | ปรับใช้โดย | ต้องใช้ |
+|---|---|---|---|
+| **ถามตอบจากเอกสาร** | [`rag-pipeline`](rag-pipeline/) | ใส่โฟลเดอร์ `.txt`, `.md`, `.pdf` และชุดทดสอบของคุณ | Ollama หรือ API key |
+| **ผู้ช่วยเรียกระบบภายใน** | [`agent-kit`](agent-kit/) | เพิ่มไฟล์ tool และ system prompt | API key |
+| **ตรวจคุณภาพ AI** | [`llm-eval`](llm-eval/) | ใช้ชุดทดสอบของคุณและตั้งเกณฑ์ใน CI | Ollama หรือ API key |
+| **บริการ API** | [`ai-api`](ai-api/) | ตั้ง auth, CORS, prompt และ deploy | Node.js, API key |
 
----
+ก่อนเปิดให้ผู้อื่นใช้ อ่าน [คู่มือนำไปใช้จริง](BLUEPRINTS.md) ซึ่งมีจุดที่ต้องเปลี่ยน รายการตรวจ และแนวทางขยายระบบ
 
-## Quick Start / เริ่มใช้งาน
+## เริ่มกับเอกสารของคุณ
+
+ต้องมี Git และ Python 3.11 ขึ้นไป
 
 ```bash
-# 1. Clone
 git clone https://github.com/shinjangforever/dpsxhope.git
 cd dpsxhope
-
-# 2. ตรวจสอบ engines ที่รันอยู่
-python local-models/engine/controller.py status
-
-# 3. เปิด Ollama + ดาวน์โหลดโมเดล
-python local-models/engine/controller.py start ollama
-python local-models/engine/controller.py pull llama3.2
-
-# 4. รัน RAG pipeline
-cd rag-pipeline && pip install -r requirements.txt
-python ingest.py --docs sample_docs/
-python query.py "What is RAG?"
-
-# 5. รัน agent workflow
-cd agent-demo
-python workflows/workflow_runner.py workflows/examples/research_workflow.json "Explain RAG"
+python -m venv .venv
 ```
 
----
-
-## Modules / โมดูล
-
-### 1. `rag-pipeline/` — Retrieval-Augmented Generation
-
-**EN:** A complete RAG system: ingest documents → embed → index → retrieve → generate → evaluate.
-
-**TH:** ระบบ RAG ครบวงจร: นำเข้าเอกสาร → แปลงเป็น vector → สร้าง index → ค้นหา → สร้างคำตอบ → ประเมินผล
-
-```
-Documents (.txt)
-    ↓ chunk + embed (sentence-transformers)
-FAISS Index
-    ↓ similarity search
-Retrieved Context
-    ↓ + user query
-Claude API → Answer
-    ↓
-Evaluation (recall@k, faithfulness)
-```
-
-**Stack:** Python · FAISS · sentence-transformers · Anthropic Claude API
+เปิดใช้งาน virtual environment:
 
 ```bash
+# macOS, Linux, Termux
+source .venv/bin/activate
+```
+
+```powershell
+# Windows PowerShell
+.\.venv\Scripts\Activate.ps1
+```
+
+ติดตั้งและสร้าง index:
+
+```bash
+pip install -r rag-pipeline/requirements.txt
+cp .env.example .env
 cd rag-pipeline
-pip install -r requirements.txt
-cp .env.example .env   # ใส่ ANTHROPIC_API_KEY
-
-python ingest.py --docs sample_docs/
-python query.py "What is RAG?"
-python evaluate.py
+python pipeline.py ingest --docs /path/to/your-docs
 ```
 
----
+เลือกวิธีสร้างคำตอบในไฟล์ `.env`:
 
-### 2. `llm-eval/` — LLM API Client + Output Evaluation
+| วิธี | ตั้งค่า |
+|---|---|
+| **Ollama ในเครื่อง** | `LLM_PROVIDER=ollama` และ `OLLAMA_MODEL=<ชื่อโมเดล>` |
+| **Claude API** | `LLM_PROVIDER=anthropic` และ `ANTHROPIC_API_KEY=<key>` |
 
-**EN:** A unified client for Anthropic Claude and Google Gemini, plus an evaluator that scores LLM output on relevance, faithfulness, and format compliance.
-
-**TH:** Client รวมสำหรับทั้ง Anthropic Claude และ Google Gemini พร้อม evaluator ที่วัดคุณภาพ output ใน 3 มิติ: ความเกี่ยวข้อง, ความน่าเชื่อถือ (hallucination check) และความถูกต้องของ format
-
-Features / ฟีเจอร์:
-- Provider-agnostic interface — สลับระหว่าง Claude และ Gemini โดยไม่ต้องแก้ logic หลัก
-- Structured output extraction — ดึงข้อมูลแบบ JSON schema
-- Faithfulness scoring via LLM-as-judge — ใช้ LLM ตรวจ LLM
-- Request logging with token usage — บันทึก log พร้อมการใช้ token
+จากนั้นถามคำถาม:
 
 ```bash
-cd llm-eval
-pip install -r requirements.txt
-
-python examples/structured_output.py
+python pipeline.py query "นโยบายลาพักร้อนคืออะไร"
 ```
 
----
+ถ้ายังไม่มีเอกสาร ใช้ `sample_docs/` เพื่อทดลองก่อนได้
 
-### 3. `agent-demo/` — Claude Agentic Loop (Tool Use)
+## โมดูลอ้างอิง
 
-**EN:** A working implementation of Claude's tool use API — the agent decides when to call tools and loops until it reaches a final answer.
+| โมดูล | ใช้ทำอะไร | ระดับ |
+|---|---|---|
+| [`local-models`](local-models/) | ควบคุม LLM engine, ตรวจสถานะ และจัด prompt format | เครื่องมืออ้างอิง |
+| [`languages`](languages/) | รูปแบบ AI ในหลายภาษาโปรแกรม | ตัวอย่างอ้างอิง |
+| [`domains`](domains/) | จุดเริ่มต้นสำหรับ robotics, quantum และ cloud | ตัวอย่างอ้างอิง |
 
-**TH:** การใช้งาน tool use API ของ Claude จริงๆ — agent ตัดสินใจเองว่าจะเรียก tool ไหน แล้ว loop จนกว่าจะได้คำตอบสุดท้าย
+## ตั้งค่าโมเดล
 
-Built-in tools / เครื่องมือในตัว:
-- `calculate` — ประเมินนิพจน์คณิตศาสตร์อย่างปลอดภัย (ไม่มี hallucinated numbers)
-- `text_search` — ค้นหา keyword ใน local files
-
-```bash
-cd agent-demo
-pip install -r requirements.txt
-
-python agent.py "What is sqrt(65536) and how many bits is that?"
-```
-
----
-
-## Setup / การติดตั้ง
-
-**EN:** Each module has its own `requirements.txt`. Create a `.env` file in the module directory:
-
-**TH:** แต่ละโมดูลมี `requirements.txt` ของตัวเอง สร้างไฟล์ `.env` ในโฟลเดอร์นั้น:
+ทุกโมดูลอ่านไฟล์ `.env` ที่ root ของ repo เปลี่ยนรุ่นโมเดลได้โดยไม่ต้องแก้โค้ด
 
 ```env
-ANTHROPIC_API_KEY=sk-ant-...
-GEMINI_API_KEY=...          # สำหรับ llm-eval Gemini examples เท่านั้น
+CLAUDE_MODEL=claude-haiku-5-5
+GEMINI_MODEL=gemini-3.5-flash
+OLLAMA_MODEL=llama3.2
 ```
 
-Python 3.11+ recommended / แนะนำ Python 3.11 ขึ้นไป
+> [!WARNING]
+> อย่า commit ไฟล์ `.env` และอย่าเปิด `ai-api` ออกอินเทอร์เน็ตโดยไม่ตั้ง `APP_API_KEY`
 
----
-
-## Design Principles / หลักการออกแบบ
-
-| EN | TH |
-|----|-----|
-| No magic — each file does one thing | ไม่ซ่อน logic — แต่ละไฟล์ทำสิ่งเดียว อ่านเข้าใจได้ทั้งหมด |
-| Production-minded — logging, eval built in | คิดแบบ production — มี logging และ evaluation ตั้งแต่ต้น |
-| Provider flexibility — not locked to one vendor | ไม่ผูกกับ vendor เดียว — เปลี่ยน LLM provider ได้ง่าย |
-| Minimal dependencies — only what's needed | dependency น้อย — ใช้เฉพาะที่จำเป็นจริงๆ |
-
----
-
-## Skills Demonstrated / ทักษะที่แสดง
-
-| Area / ด้าน | Implementation |
-|-------------|---------------|
-| RAG Pipeline | `rag-pipeline/` — ingest → retrieve → generate ครบวงจร |
-| LLM API (Cloud) | `llm-eval/client.py` — Anthropic + Gemini unified client |
-| LLM API (Local) | `local-models/` — Ollama, LM Studio, Jan, llama.cpp, vLLM |
-| Prompt Design | structured output, few-shot, system prompts |
-| Agent / Tool Use | `agent-demo/agent.py` — agentic loop + function calling จริง |
-| Evaluation & Monitoring | relevance · faithfulness · recall@k · token logging |
-| REST API (Node.js) | `ai-api/` — Express + streaming + rate limit |
-
----
-
-### 4. `ai-api/` — REST API with Node.js (JavaScript)
-
-**EN:** Express.js server exposing Claude as a REST API — single turn and streaming endpoints, with rate limiting.
-
-**TH:** Express.js server ที่ห่อ Claude เป็น REST API — รองรับทั้งแบบ single turn และ streaming พร้อม rate limit
-
-```
-POST /api/chat         → single response (JSON)
-POST /api/chat/stream  → streaming (Server-Sent Events)
-GET  /health           → status check
-```
+## ทดสอบ
 
 ```bash
-cd ai-api
-npm install
-cp .env.example .env   # ใส่ ANTHROPIC_API_KEY
-
-npm run dev            # รัน dev server พร้อม --watch
-
-# ทดสอบ
-curl -X POST http://localhost:3000/api/chat \
-  -H "Content-Type: application/json" \
-  -d '{"message": "What is RAG?"}'
+python -m unittest discover -s tests
 ```
 
----
+## หลักการ
 
-### 5. `local-models/` — Local LLM Engines (Python)
+- **เริ่มจากงานจริง:** ใช้ข้อมูล กติกา และชุดทดสอบของคุณแทนข้อมูลตัวอย่าง
+- **บอกข้อจำกัด:** ทุกต้นแบบระบุสิ่งที่ยังต้องเพิ่มก่อนใช้จริง
+- **เปลี่ยนได้:** ไม่ผูกกับผู้ให้บริการโมเดลเจ้าเดียว
+- **นำไปต่อได้:** โค้ดและเนื้อหามี license ชัดเจน
 
-**EN:** Run LLMs locally — zero API cost, works offline. Unified client supporting Ollama, LM Studio, Jan, llama.cpp, and vLLM.
+## ร่วมพัฒนา
 
-**TH:** รัน LLM บนเครื่องตัวเอง — ไม่เสียค่า API, ทำงาน offline ได้ unified client รองรับ Ollama, LM Studio, Jan, llama.cpp และ vLLM
+แก้คำสั่งที่พัง เพิ่มต้นแบบ หรือเสนอสาขาใหม่ได้ อ่านแนวทางใน [CONTRIBUTING.md](CONTRIBUTING.md) และดูทิศทางใน [ROADMAP.md](ROADMAP.md)
 
-Supported engines / engine ที่รองรับ:
+## License
 
-| Engine | Port | Interface |
-|--------|------|-----------|
-| Ollama | 11434 | Ollama API |
-| LM Studio | 1234 | OpenAI-compatible |
-| Jan | 1337 | OpenAI-compatible |
-| llama.cpp server | 8080 | OpenAI-compatible |
-| vLLM | 8000 | OpenAI-compatible |
+โค้ดใช้ [MIT](LICENSE) และเนื้อหาใช้ [CC BY 4.0](LICENSE-CONTENT.md) ส่วนไฟล์จากบุคคลที่สามใช้ license ของเจ้าของเดิม
 
-```bash
-cd local-models
-
-# Ollama (ติดตั้งก่อน: ollama.com)
-ollama pull llama3.2
-python ollama_client.py "อธิบาย RAG ให้หน่อย"
-
-# Unified client — เปลี่ยน provider ด้วย 1 บรรทัด
-python unified_client.py "Explain embeddings"
-```
-
-ดูรายละเอียดโมเดลและ VRAM requirements → [ENGINES.md](local-models/ENGINES.md)
-
-#### llama.cpp — คำสั่งครบชุด / Full Command Reference
-
-```bash
-# ── ติดตั้ง / Install ────────────────────────────────────────
-git clone --depth 1 https://github.com/ggml-org/llama.cpp
-cd llama.cpp
-
-# CPU only
-cmake -B build && cmake --build build -j$(nproc)
-
-# + AVX2 (Intel/AMD modern CPU — เร็วขึ้น ~30%)
-cmake -B build -DGGML_AVX2=ON && cmake --build build -j$(nproc)
-
-# + CUDA (NVIDIA GPU)
-cmake -B build -DGGML_CUDA=ON && cmake --build build -j$(nproc)
-
-# + Metal (Apple Silicon)
-cmake -B build -DGGML_METAL=ON && cmake --build build -j$(nproc)
-
-# + ROCm (AMD GPU)
-cmake -B build -DGGML_HIPBLAS=ON && cmake --build build -j$(nproc)
-
-# ARM / Raspberry Pi / Termux
-cmake -B build -DGGML_NEON=ON && cmake --build build -j4
-
-# ── Server (OpenAI-compatible API) ──────────────────────────
-./build/bin/llama-server -m model.gguf --port 8080
-
-# ปรับ thread + context size
-./build/bin/llama-server -m model.gguf -t 8 --ctx-size 8192 --port 8080
-
-# GPU layers (offload ไป GPU บางส่วน — ประหยัด RAM)
-./build/bin/llama-server -m model.gguf --n-gpu-layers 20 --port 8080
-
-# ── Chat CLI ────────────────────────────────────────────────
-./build/bin/llama-cli -m model.gguf --interactive -p "You are a helpful assistant."
-
-# one-shot
-./build/bin/llama-cli -m model.gguf -p "สวัสดี" -n 200 --no-display-prompt
-
-# ── Perplexity / Benchmark ──────────────────────────────────
-./build/bin/llama-perplexity -m model.gguf -f test.txt
-
-# throughput test
-./build/bin/llama-bench -m model.gguf -n 512 -ngl 0
-
-# ── Convert & Quantize ──────────────────────────────────────
-# HuggingFace → GGUF
-python convert_hf_to_gguf.py /path/to/model --outfile model.gguf
-
-# quantize (Q4_K_M แนะนำ)
-./build/bin/llama-quantize model-f16.gguf model-q4_k_m.gguf Q4_K_M
-
-# ── Embeddings server ───────────────────────────────────────
-./build/bin/llama-server -m embed-model.gguf --embeddings --port 8080
-
-# ── Script อัตโนมัติ (auto-detect arch) ─────────────────────
-bash local-models/llamacpp/server.sh /path/to/model.gguf 8080
-```
-
----
-
-### 5.5 `local-models/engine/` — Engine Control + Chat Format
-
-**EN:** Programmatic control of all LLM engines + correct prompt formatting per model family.  
-**TH:** ควบคุม engine ทุกตัวด้วย code + จัด prompt format ให้ถูกต้องตามแต่ละโมเดล
-
-```bash
-# ── Engine Controller ────────────────────────────────────────
-python local-models/engine/controller.py status          # ตรวจทุก engine
-python local-models/engine/controller.py start ollama    # เปิด Ollama
-python local-models/engine/controller.py pull qwen2.5:7b # ดาวน์โหลดโมเดล
-python local-models/engine/controller.py switch llama3.2 qwen2.5:7b  # สลับโมเดล
-python local-models/engine/controller.py bench qwen2.5:7b            # benchmark
-python local-models/engine/controller.py stop ollama     # ปิด Ollama
-
-# ── Chat Format (prompt template ต่างกันต่างโมเดล) ───────────
-python local-models/engine/chat_format.py
-```
-
-**Chat Format families / รูปแบบ prompt ตามโมเดล:**
-
-| Format | โมเดล | Template style |
-|--------|--------|---------------|
-| **Llama 3** | llama3.x | `<\|start_header_id\|>role<\|end_header_id\|>` |
-| **ChatML** | Qwen · Phi · Mistral · OpenHermes | `<\|im_start\|>role\ncontent<\|im_end\|>` |
-| **Gemma** | gemma2 | `<start_of_turn>role\ncontent<end_of_turn>` |
-| **DeepSeek** | deepseek-r1 · deepseek-v2 | `User: ...\nAssistant: <think>` |
-| **Llama 2** | llama2 · codellama | `[INST] <<SYS>>\nsystem\n<</SYS>>\nuser [/INST]` |
-| **Alpaca** | WizardLM · Vicuna | `### Instruction:\n...\n### Response:` |
-
----
-
-### 5.6 `agent-demo/workflows/` — Multi-Step Agent Workflows
-
-**EN:** Define and run multi-step agent workflows from JSON — each step can use different models, tools, and conditions.  
-**TH:** สร้างและรัน workflow หลาย step จาก JSON — แต่ละ step ใช้โมเดล, tools และเงื่อนไขต่างกันได้
-
-```bash
-# รัน research workflow (classify → research → summarize → recommend)
-python agent-demo/workflows/workflow_runner.py \
-  agent-demo/workflows/examples/research_workflow.json \
-  "How does vector search work?"
-
-# รัน RAG Q&A workflow (rephrase → retrieve → answer → evaluate)
-python agent-demo/workflows/workflow_runner.py \
-  agent-demo/workflows/examples/rag_qa_workflow.json \
-  "What is retrieval-augmented generation?"
-```
-
-**Workflow structure / โครงสร้าง workflow:**
-
-```json
-{
-  "name": "My Workflow",
-  "steps": [
-    {
-      "name": "step_name",
-      "system": "role prompt",
-      "prompt_template": "Do X with: {input} (prev: {prev_output})",
-      "model": "claude-haiku-4-5-20251001",
-      "tools": ["calculate", "text_search"],
-      "condition": "if_prev_success"
-    }
-  ]
-}
-```
-
----
-
-### 6. `languages/` — Multi-language AI Examples
-
-**EN:** Same AI patterns implemented across multiple programming languages.  
-**TH:** pattern เดียวกัน เขียนด้วยหลายภาษา — เปรียบเทียบ trade-off แต่ละภาษาได้ทันที
-
-| File | Language | สิ่งที่แสดง |
-|------|----------|-----------|
-| `go/llm_client.go` | **Go** | LLM API client — fast, low memory, no runtime |
-| `rust/tokenizer.rs` | **Rust** | Token counting + text chunking — performance critical |
-| `typescript/client.ts` | **TypeScript** | Type-safe LLM client + structured output + streaming |
-| `bash/model_manager.sh` | **Bash/Shell** | Model management + health check + benchmarking |
-| `sql/ai_logs_schema.sql` | **SQL** | PostgreSQL schema — logging, eval, knowledge metadata |
-| `yaml/ai_stack.docker-compose.yml` | **YAML** | Full AI dev stack: Ollama + Postgres + Redis + API |
-
----
-
-### 7. `domains/` — Applied AI in Specialized Fields
-
-**EN:** AI applied to robotics, quantum computing, and cloud infrastructure.  
-**TH:** AI ประยุกต์ใช้ใน robotics, quantum computing และ cloud infrastructure
-
-| Directory | สิ่งที่แสดง |
-|-----------|-----------|
-| `robotics/ros2_llm_bridge.py` | ROS 2 + LLM — แปลงภาษาธรรมชาติเป็น robot command |
-| `quantum/qiskit_intro.py` | Qiskit — Bell State, Grover Search, VQE + LLM explanation |
-| `cloud-infra/README.md` | Docker · K8s · Terraform · GitHub Actions · Prometheus |
-
----
-
-## Author / ผู้สร้าง
+## ผู้สร้าง
 
 **Daranpat Pattarakanpong (Shin)**
-Strategic optimizer · AI engineer in practice · building things that work
