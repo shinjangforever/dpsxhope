@@ -67,7 +67,7 @@ def parse_command(instruction: str, state: RobotState) -> RobotCommand:
 
     prompt = f"Robot state:\n{state.to_context()}\n\nInstruction: {instruction}"
     resp = client.messages.create(
-        model="claude-haiku-4-5-20251001",
+        model=os.getenv("CLAUDE_MODEL", "claude-haiku-5-5"),
         max_tokens=256,
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": prompt}],

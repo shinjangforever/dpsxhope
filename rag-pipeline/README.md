@@ -76,14 +76,44 @@ retrieved = {"id": int, "source": str, "heading": str, "text": str, "score": flo
 pip install -r requirements.txt
 ```
 
-ตั้งค่า API key ผ่านไฟล์ `.env` ที่โฟลเดอร์นี้:
+ตั้งค่าผ่านไฟล์ `.env` ที่ root ของ repo:
 
-```
-# .env
-ANTHROPIC_API_KEY=sk-ant-xxxxxxxx
+```bash
+cp ../.env.example ../.env
 ```
 
-> `config.api_key()` จะอ่านจาก environment และ error ทันทีถ้าไม่ได้ตั้ง
+ใช้ Claude ให้ใส่ `ANTHROPIC_API_KEY` ส่วนการรันในเครื่องโดยไม่ใช้ key ให้ตั้ง `LLM_PROVIDER=ollama` และ `OLLAMA_MODEL`
+
+---
+
+## นำไปใช้กับเอกสารของคุณ
+
+```bash
+python pipeline.py ingest --docs /path/to/your-docs
+python pipeline.py query "นโยบายลาพักร้อนคืออะไร" --json
+python pipeline.py eval --cases eval_cases.json --min-recall 0.8
+```
+
+รองรับ `.txt`, `.md` และ `.pdf` ที่มีข้อความ ค่าเริ่มต้นใช้ embedding หลายภาษาและ BM25 ที่รองรับข้อความไทย ส่วน PDF ที่เป็นภาพสแกนต้องทำ OCR ก่อน
+
+เรียกจากแอป Python:
+
+```python
+from pipeline import ask
+
+result = ask("นโยบายลาพักร้อนคืออะไร")
+print(result["answer"], result["sources"])
+```
+
+| ต้องการเปลี่ยน | ตั้งค่า |
+|---|---|
+| ที่เก็บ index | `RAG_DATA_DIR` |
+| โมเดล embedding | `RAG_EMBED_MODEL` |
+| จำนวนแหล่งอ้างอิง | `RAG_TOP_K` |
+| reranker | `RAG_USE_RERANK`, `RAG_RERANK_MODEL` |
+| ผู้ให้บริการ LLM | `LLM_PROVIDER` หรือแก้ `complete()` ใน `generate.py` |
+
+**ข้อจำกัด:** `ingest` สร้าง index ใหม่ทั้งหมด และยังไม่มีการแยกสิทธิ์รายเอกสาร ให้เพิ่มก่อนใช้กับข้อมูลที่แต่ละคนเข้าถึงไม่เท่ากัน ถ้าเปิด reranker ค่าเริ่มต้นเหมาะกับภาษาอังกฤษ ควรเลือกโมเดลที่รองรับภาษาไทยเมื่อใช้เอกสารไทย
 
 ---
 

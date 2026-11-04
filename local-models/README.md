@@ -19,23 +19,21 @@ ENGINES.md         — เปรียบเทียบ engine แต่ละ�
 ## Quick Start
 
 ```bash
-pip install -r requirements.txt
+ollama pull llama3.2
+python ollama_client.py "อธิบาย RAG ให้หน่อย"
 
-# ด้วย Ollama
-ollama pull llama3
-python ollama_client.py
-
-# ด้วย unified client
-python unified_client.py --backend ollama --model llama3
-python unified_client.py --backend claude --model claude-haiku-4-5-20251001
+# เปลี่ยนรุ่นด้วย OLLAMA_MODEL ใน .env
+python unified_client.py "Explain embeddings"
 ```
 
 ## engine/controller.py
 
 ```bash
-python engine/controller.py start llama3
-python engine/controller.py bench llama3
-python engine/controller.py switch mistral
+python engine/controller.py status
+python engine/controller.py start ollama
+python engine/controller.py pull llama3.2
+python engine/controller.py bench llama3.2
+python engine/controller.py switch llama3.2 qwen2.5:7b
 ```
 
 ## เทคโนโลยี

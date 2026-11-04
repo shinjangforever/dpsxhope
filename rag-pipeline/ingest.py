@@ -2,18 +2,18 @@
 ingest.py — โหลด documents → chunk → embed → บันทึก FAISS index + metadata + BM25 corpus
 
 pipeline:
-  1. load_docs : อ่านไฟล์ .txt และ .md ทุกไฟล์ในโฟลเดอร์ (recursive)
+  1. load_docs : อ่านไฟล์ .txt, .md และ .pdf ทุกไฟล์ในโฟลเดอร์ (recursive)
   2. chunk     : เรียก chunk_document (chunking.py) แบบ semantic/heading-aware
   3. embed     : SentenceTransformer → normalize → float32
   4. index     : FAISS IndexFlatIP (cosine เพราะ normalize แล้ว) → เขียน INDEX_PATH
   5. meta      : เขียน META_PATH (list chunk dict พร้อม id/heading)
   6. bm25      : เขียน BM25_PATH (tokenized corpus + ids) ให้ retrieve โหลดได้ตรงๆ
 
-รัน: python ingest.py --docs sample_docs/
+รัน: python ingest.py --docs /path/to/your-docs
 """
 import argparse
 import json
-import re
+import os
 from pathlib import Path
 
 import faiss
@@ -21,27 +21,42 @@ import numpy as np
 from sentence_transformers import SentenceTransformer
 from tqdm import tqdm
 
-from config import EMBED_MODEL, INDEX_PATH, META_PATH, BM25_PATH
+from config import BM25_PATH, DATA_DIR, EMBED_MODEL, INDEX_PATH, META_PATH
 from chunking import chunk_document
+from textutil import tokenize
 
-# tokenizer สำหรับ BM25 — ต้อง "ตรงกับ retrieve.py" เป๊ะ (lower + split ตัวที่ไม่ใช่ a-z0-9)
-# มิฉะนั้น query กับ corpus จะ tokenize ไม่เหมือนกัน BM25 จะ match ไม่ตรง
-_TOKEN_RE = re.compile(r"[^a-z0-9]+")
+SUPPORTED_SUFFIXES = {".txt", ".md", ".pdf"}
 
+def read_document(path: Path) -> str:
+    """อ่านข้อความจากไฟล์ที่รองรับ"""
+    if path.suffix.lower() == ".pdf":
+        from pypdf import PdfReader
 
-def _tokenize(text: str) -> list[str]:
-    """lower + split ตาม non-alphanumeric, กรอง token ว่างทิ้ง"""
-    return [t for t in _TOKEN_RE.split(text.lower()) if t]
+        return "\n\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages)
+    return path.read_text(encoding="utf-8")
 
 
 def load_docs(docs_dir: str) -> list[dict]:
-    """อ่าน .txt และ .md ทุกไฟล์ใน docs_dir (recursive) คืน [{"source","text"}]"""
-    docs = []
+    """อ่านไฟล์ที่รองรับใน docs_dir (recursive) คืน [{"source","text"}] และข้ามไฟล์ที่อ่านไม่ได้"""
     base = Path(docs_dir)
-    paths = sorted(base.rglob("*.txt")) + sorted(base.rglob("*.md"))  # deterministic
+    if not base.is_dir():
+        raise SystemExit(f"ไม่พบโฟลเดอร์เอกสาร: {base}")
+
+    docs, skipped = [], []
+    paths = sorted(p for p in base.rglob("*") if p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES)
     for path in paths:
-        text = path.read_text(encoding="utf-8")
-        docs.append({"source": str(path), "text": text})
+        try:
+            text = read_document(path)
+        except Exception as exc:
+            skipped.append(f"{path}: {exc}")
+            continue
+        if text.strip():
+            docs.append({"source": str(path), "text": text})
+        else:
+            skipped.append(f"{path}: ไม่พบข้อความ")
+
+    for item in skipped:
+        print(f"⚠ ข้าม {item}")
     return docs
 
 
@@ -71,26 +86,34 @@ def build_index(docs: list[dict]) -> None:
     dim = embeddings.shape[1]
     index = faiss.IndexFlatIP(dim)
     index.add(embeddings)
-    faiss.write_index(index, INDEX_PATH)
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    temp_index = f"{INDEX_PATH}.tmp"
+    temp_meta = f"{META_PATH}.tmp"
+    temp_bm25 = f"{BM25_PATH}.tmp"
+    faiss.write_index(index, temp_index)
 
     # 4) META = list ของ chunk dict ทั้งหมด (มี id/heading ครบ) เรียงตรงกับ position ใน faiss
-    with open(META_PATH, "w", encoding="utf-8") as f:
+    with open(temp_meta, "w", encoding="utf-8") as f:
         json.dump(all_chunks, f, ensure_ascii=False, indent=2)
 
     # 5) BM25 corpus: tokenize ล่วงหน้าทุก chunk เก็บคู่กับ id (retrieve โหลดมาใช้ได้เลย)
     bm25 = {
-        "corpus_tokens": [_tokenize(c["text"]) for c in all_chunks],
+        "corpus_tokens": [tokenize(c["text"]) for c in all_chunks],
         "ids": [c["id"] for c in all_chunks],
     }
-    with open(BM25_PATH, "w", encoding="utf-8") as f:
+    with open(temp_bm25, "w", encoding="utf-8") as f:
         json.dump(bm25, f, ensure_ascii=False)
+
+    # เปลี่ยนไฟล์หลังเขียนครบ เพื่อไม่ให้ index เดิมเสียเมื่อ ingest ล้มเหลวกลางทาง
+    for temp, final in ((temp_index, INDEX_PATH), (temp_meta, META_PATH), (temp_bm25, BM25_PATH)):
+        os.replace(temp, final)
 
     print(f"✓ index saved — {index.ntotal} vectors, dim={dim}, chunks={len(all_chunks)}")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="สร้าง index จากเอกสารใน docs dir")
-    parser.add_argument("--docs", default="sample_docs/", help="โฟลเดอร์ที่เก็บ .txt / .md")
+    parser.add_argument("--docs", default="sample_docs/", help="โฟลเดอร์ที่เก็บ .txt, .md หรือ .pdf")
     args = parser.parse_args()
 
     docs = load_docs(args.docs)

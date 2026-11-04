@@ -28,6 +28,7 @@ interface EvalScore {
 
 // ── Client ────────────────────────────────────────────────────
 
+const DEFAULT_MODEL = process.env.CLAUDE_MODEL ?? "claude-haiku-5-5";
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
 export async function chat(
@@ -35,7 +36,7 @@ export async function chat(
   {
     system = "You are a helpful assistant.",
     maxTokens = 1024,
-    model = "claude-haiku-4-5-20251001",
+    model = DEFAULT_MODEL,
   }: ChatOptions = {}
 ): Promise<ChatResult> {
   const start = performance.now();
@@ -75,7 +76,7 @@ export async function streamChat(
   options?: ChatOptions
 ): Promise<string> {
   const stream = client.messages.stream({
-    model: options?.model ?? "claude-haiku-4-5-20251001",
+    model: options?.model ?? DEFAULT_MODEL,
     max_tokens: options?.maxTokens ?? 1024,
     system: options?.system ?? "You are a helpful assistant.",
     messages: [{ role: "user", content: prompt }],

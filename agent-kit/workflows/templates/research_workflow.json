@@ -6,14 +6,12 @@
       "name": "classify",
       "system": "You are a topic classifier. Reply with JSON only: {\"topic\": \"string\", \"complexity\": \"basic|intermediate|advanced\"}",
       "prompt_template": "Classify this question: {input}",
-      "model": "claude-haiku-4-5-20251001",
       "max_tokens": 128
     },
     {
       "name": "research",
       "system": "You are a research assistant. Search for relevant information and provide detailed findings.",
       "prompt_template": "Research this topic thoroughly: {input}\n\nClassification context: {prev_output}",
-      "model": "claude-haiku-4-5-20251001",
       "max_tokens": 1024,
       "tools": ["text_search", "calculate"],
       "condition": "if_prev_success"
@@ -22,7 +20,6 @@
       "name": "summarize",
       "system": "You are a technical writer. Create a clear, structured summary.",
       "prompt_template": "Summarize the following research into 3 key points:\n\n{prev_output}",
-      "model": "claude-haiku-4-5-20251001",
       "max_tokens": 512,
       "condition": "if_prev_success"
     },
@@ -30,7 +27,6 @@
       "name": "recommend",
       "system": "You are a strategic advisor. Give actionable next steps.",
       "prompt_template": "Based on this summary:\n{prev_output}\n\nOriginal question: {input}\n\nProvide 3 concrete next steps.",
-      "model": "claude-haiku-4-5-20251001",
       "max_tokens": 512,
       "condition": "if_prev_success"
     }

@@ -1,8 +1,8 @@
 import rateLimit from 'express-rate-limit';
 
-export const rateLimiter = rateLimit({
-  windowMs: 60 * 1000,   // 1 นาที
-  max: 30,               // สูงสุด 30 requests/นาที
+export const createRateLimiter = () => rateLimit({
+  windowMs: 60 * 1000,
+  max: Number(process.env.RATE_LIMIT_PER_MINUTE) || 30,
   standardHeaders: true,
   legacyHeaders: false,
   message: { error: 'Too many requests, please try again later.' },

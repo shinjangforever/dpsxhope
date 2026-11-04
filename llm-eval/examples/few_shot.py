@@ -3,6 +3,11 @@
 เทคนิคนี้ช่วยให้ LLM เข้าใจ format และ tone ที่ต้องการ
 โดยไม่ต้อง fine-tune model ใหม่
 """
+import sys
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 from client import chat, Provider
 
 SYSTEM = "You are a concise technical writer."

@@ -2,41 +2,31 @@
 evaluate.py — วัดคุณภาพ RAG pipeline ด้วย 3 metric
   1. recall@k          — retrieved chunks ครอบคลุม keyword ที่คาดหวังแค่ไหน
   2. context_precision — สัดส่วน chunk ที่ score เกิน threshold (retrieve ตรงแค่ไหน)
-  3. faithfulness      — answer อ้างเกิน context หรือเปล่า (ตรวจด้วย Claude)
+  3. faithfulness      — answer อ้างเกิน context หรือเปล่า (ตรวจด้วย LLM ที่ตั้งไว้)
 
-รัน: python evaluate.py
+รัน: python evaluate.py --cases eval_cases.json --min-recall 0.7
 """
+import argparse
 import json
+import re
+from pathlib import Path
 
-import anthropic
 import numpy as np
-from dotenv import load_dotenv
 
 import config
 from retrieve import retrieve
-from generate import generate, format_context
-
-# โหลด .env เพื่อให้ ANTHROPIC_API_KEY เข้ามาใน environment
-load_dotenv()
+from generate import complete, generate, format_context
 
 # threshold สำหรับ context_precision: ถือว่า chunk "ตรง" ถ้า score เกินค่านี้
 SCORE_THRESHOLD = 0.0
 
-# ชุดทดสอบ — แต่ละข้อมีคำถาม + keyword ที่คาดว่าควรเจอใน chunks ที่ดึงมา
-EVAL_SET = [
-    {
-        "question": "RAG คืออะไร?",
-        "expected_keywords": ["retrieval", "augmented", "generation", "context"],
-    },
-    {
-        "question": "vector search / embedding ทำงานยังไง?",
-        "expected_keywords": ["embedding", "vector", "similarity", "nearest"],
-    },
-    {
-        "question": "การ chunk เอกสารใน RAG ทำเพื่ออะไร?",
-        "expected_keywords": ["chunk", "overlap", "size", "context"],
-    },
-]
+
+def load_cases(path: str) -> list[dict]:
+    """อ่านชุดทดสอบ: [{"question": "...", "expected_keywords": ["..."]}]"""
+    cases = json.loads(Path(path).read_text(encoding="utf-8"))
+    if not cases:
+        raise SystemExit(f"ไม่พบชุดทดสอบใน {path}")
+    return cases
 
 
 def recall_at_k(question: str, expected_keywords: list[str], k: int = config.TOP_K) -> float:
@@ -62,49 +52,30 @@ def context_precision(question: str, k: int = config.TOP_K) -> float:
 
 
 def faithfulness_check(question: str, answer: str) -> dict:
-    """
-    ใช้ Claude ตรวจว่า answer อ้างเกิน context (hallucinate) ไหม
-    คืน {"faithful": bool, "reason": str} ; ถ้า parse json ไม่ได้ → faithful=None
-    """
+    """ให้ LLM ตรวจว่า answer อ้างเกิน context หรือไม่"""
+    context = format_context(retrieve(question))
+    prompt = (
+        f"Context:\n{context}\n\nQuestion: {question}\nAnswer: {answer}\n\n"
+        'Reply with JSON only: {"faithful": true, "reason": "..."}'
+    )
     try:
-        client = anthropic.Anthropic(api_key=config.api_key())
-        response = client.messages.create(
-            model=config.CLAUDE_MODEL,
-            max_tokens=256,
-            system=(
-                "คุณคือผู้ตรวจสอบความซื่อตรง (faithfulness) ของคำตอบ RAG "
-                "ตอบกลับเป็น JSON ล้วนเท่านั้น ห้ามมีข้อความอื่น"
-            ),
-            messages=[
-                {
-                    "role": "user",
-                    "content": (
-                        f"คำถาม: {question}\nคำตอบ: {answer}\n\n"
-                        "คำตอบนี้กล่าวอ้างเกินสิ่งที่ควรมีหรือดูเหมือนแต่งขึ้นเอง "
-                        "(unsupported / hallucinated) หรือไม่? "
-                        'ตอบเป็น JSON: {"faithful": true/false, "reason": "..."}'
-                    ),
-                }
-            ],
-        )
-        text = "".join(
-            b.text for b in response.content if getattr(b, "type", None) == "text"
-        )
-        return json.loads(text)
-    except Exception as e:
-        # parse error หรือ api error → ไม่ตัดสิน
-        return {"faithful": None, "reason": f"parse/api error: {e}"}
+        raw = complete("You check whether an answer is fully supported by the context.", prompt)
+        match = re.search(r"\{.*\}", raw, re.S)
+        return json.loads(match.group(0)) if match else {"faithful": None, "reason": "parse error"}
+    except Exception as exc:
+        return {"faithful": None, "reason": str(exc)}
 
 
-def run_eval() -> None:
-    """วน EVAL_SET พิมพ์ 3 metric ต่อข้อ แล้วสรุปค่าเฉลี่ยรวมท้าย"""
+def run_eval(cases_path: str = "eval_cases.json", min_recall: float = 0.0, use_judge: bool = True) -> bool:
+    """รันชุดทดสอบ แล้วคืน True เมื่อ recall ผ่านเกณฑ์"""
+    cases = load_cases(cases_path)
     print("=== RAG Evaluation ===\n")
     k = config.TOP_K
     recall_scores = []
     precision_scores = []
     faithful_flags = []
 
-    for item in EVAL_SET:
+    for item in cases:
         q = item["question"]
 
         r = recall_at_k(q, item["expected_keywords"], k)
@@ -113,9 +84,11 @@ def run_eval() -> None:
         precision_scores.append(p)
 
         # ดึง chunks จริงครั้งเดียวเพื่อ generate คำตอบไปตรวจ faithfulness
-        chunks = retrieve(q, top_k=k)
-        answer = generate(q, chunks)
-        faith = faithfulness_check(q, answer)
+        faith = {"faithful": None, "reason": "skipped"}
+        if use_judge:
+            chunks = retrieve(q, top_k=k)
+            answer = generate(q, chunks)
+            faith = faithfulness_check(q, answer)
         faithful_flags.append(faith.get("faithful"))
 
         print(f"Q: {q}")
@@ -131,8 +104,16 @@ def run_eval() -> None:
     print("=== สรุปเฉลี่ย ===")
     print(f"avg recall@{k}:          {np.mean(recall_scores):.2f}")
     print(f"avg context_precision: {np.mean(precision_scores):.2f}")
-    print(f"faithful rate:         {faithful_rate:.2f} (จาก {len(judged)}/{len(EVAL_SET)} ข้อที่ตัดสินได้)")
+    print(f"faithful rate:         {faithful_rate:.2f} (จาก {len(judged)}/{len(cases)} ข้อที่ตัดสินได้)")
+    passed = float(np.mean(recall_scores)) >= min_recall
+    print(f"result:                {'pass' if passed else 'fail'} (min recall {min_recall:.2f})")
+    return passed
 
 
 if __name__ == "__main__":
-    run_eval()
+    parser = argparse.ArgumentParser(description="ประเมินคุณภาพ RAG จากชุดทดสอบ")
+    parser.add_argument("--cases", default="eval_cases.json")
+    parser.add_argument("--min-recall", type=float, default=0.0)
+    parser.add_argument("--no-judge", action="store_true")
+    args = parser.parse_args()
+    raise SystemExit(0 if run_eval(args.cases, args.min_recall, not args.no_judge) else 1)

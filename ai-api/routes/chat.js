@@ -3,58 +3,79 @@ import { Router } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 
 export const chatRouter = Router();
-// สร้าง client ของ Anthropic ด้วย API key จาก env
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
 
-// POST /api/chat — single turn
+const MAX_OUTPUT_TOKENS = 2048;
+const MAX_MESSAGE_CHARS = 8000;
+const modelName = () => process.env.CLAUDE_MODEL || 'claude-haiku-5-5';
+const textFrom = (content) => content.filter((block) => block.type === 'text').map((block) => block.text).join('');
+
+const systemPrompt = (requested) => {
+  const fallback = process.env.SYSTEM_PROMPT || 'You are a helpful assistant.';
+  return process.env.ALLOW_CLIENT_SYSTEM === 'true' && requested ? String(requested) : fallback;
+};
+const invalidMessage = (message) => typeof message !== 'string' || !message.trim() || message.length > MAX_MESSAGE_CHARS;
+
+// สร้าง client ตอนใช้งาน เพื่อให้ /health ทำงานได้แม้ยังไม่ตั้ง API key
+function getClient() {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    const error = new Error('Set ANTHROPIC_API_KEY in .env at the repo root.');
+    error.status = 503;
+    throw error;
+  }
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+}
+
 // POST /api/chat — ถาม-ตอบครั้งเดียว (ไม่ stream)
-chatRouter.post('/chat', async (req, res) => {
-  // ดึงค่าจาก body พร้อมตั้ง default ให้ system prompt และ max_tokens
-  const { message, system = 'You are a helpful assistant.', max_tokens = 1024 } = req.body;
+chatRouter.post('/chat', async (req, res, next) => {
+  try {
+    const { message, system, max_tokens = 1024 } = req.body ?? {};
+    if (invalidMessage(message)) return res.status(400).json({ error: `message must be 1-${MAX_MESSAGE_CHARS} characters` });
 
-  if (!message) return res.status(400).json({ error: 'message is required' });   // ต้องมีข้อความ
+    const response = await getClient().messages.create({
+      model: modelName(),
+      max_tokens: Math.min(Number(max_tokens) || 1024, MAX_OUTPUT_TOKENS),
+      system: systemPrompt(system),
+      messages: [{ role: 'user', content: message }],
+    });
 
-  // เรียก Claude แบบรอผลครบทีเดียว
-  const response = await client.messages.create({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens,
-    system,
-    messages: [{ role: 'user', content: message }],
-  });
-
-  // ส่งกลับเฉพาะข้อความ + ข้อมูล usage/model ให้ฝั่ง client
-  res.json({
-    reply: response.content[0].text,
-    usage: response.usage,
-    model: response.model,
-  });
+    res.json({ reply: textFrom(response.content), usage: response.usage, model: response.model });
+  } catch (error) {
+    next(error);
+  }
 });
 
-// POST /api/chat/stream — streaming response
 // POST /api/chat/stream — ตอบแบบ stream ผ่าน Server-Sent Events (SSE)
-chatRouter.post('/chat/stream', async (req, res) => {
-  const { message, system = 'You are a helpful assistant.' } = req.body;
-  if (!message) return res.status(400).json({ error: 'message is required' });
+chatRouter.post('/chat/stream', async (req, res, next) => {
+  const { message, system } = req.body ?? {};
+  if (invalidMessage(message)) return res.status(400).json({ error: `message must be 1-${MAX_MESSAGE_CHARS} characters` });
 
-  // ตั้ง header ให้เป็น event-stream และห้าม cache
+  let client;
+  try {
+    client = getClient();
+  } catch (error) {
+    return next(error);
+  }
+
   res.setHeader('Content-Type', 'text/event-stream');
   res.setHeader('Cache-Control', 'no-cache');
 
-  // เปิด stream กับ Claude
-  const stream = client.messages.stream({
-    model: 'claude-haiku-4-5-20251001',
-    max_tokens: 1024,
-    system,
-    messages: [{ role: 'user', content: message }],
-  });
+  try {
+    const stream = client.messages.stream({
+      model: modelName(),
+      max_tokens: 1024,
+      system: systemPrompt(system),
+      messages: [{ role: 'user', content: message }],
+    });
 
-  // วนรับทีละ chunk — ส่งเฉพาะ delta ที่เป็นข้อความออกไปให้ client
-  for await (const chunk of stream) {
-    if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
-      res.write(`data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`);
+    for await (const chunk of stream) {
+      if (chunk.type === 'content_block_delta' && chunk.delta.type === 'text_delta') {
+        res.write(`data: ${JSON.stringify({ text: chunk.delta.text })}\n\n`);
+      }
     }
+    res.write('data: [DONE]\n\n');
+  } catch (error) {
+    console.error(error.message);
+    res.write(`data: ${JSON.stringify({ error: 'stream failed' })}\n\n`);
   }
-
-  res.write('data: [DONE]\n\n');   // สัญญาณว่าจบ stream
   res.end();
 });
