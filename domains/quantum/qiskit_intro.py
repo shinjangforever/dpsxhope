@@ -31,7 +31,7 @@ def grover_search(target: int, n_qubits: int = 3):
     Grover's algorithm — ค้นหา target ใน unsorted list
     Quantum speedup: O(√N) vs classical O(N)
     """
-    from qiskit import QuantumCircuit
+    from qiskit import QuantumCircuit, transpile
     from qiskit.circuit.library import GroverOperator
     from qiskit_aer import AerSimulator
     import numpy as np
@@ -59,7 +59,8 @@ def grover_search(target: int, n_qubits: int = 3):
     qc.measure(range(n_qubits), range(n_qubits))
 
     sim = AerSimulator()
-    counts = sim.run(qc, shots=2048).result().get_counts()
+    # GroverOperator เป็นเกตแบบรวม (ชื่อ "Q") ที่ Aer ไม่รู้จัก ต้อง transpile ก่อนรัน
+    counts = sim.run(transpile(qc, sim), shots=2048).result().get_counts()
     return qc, counts
 
 
@@ -69,13 +70,14 @@ def vqe_cost_function(params):
     ใช้หา ground state energy ของ molecule → drug discovery, materials
     """
     from qiskit.circuit.library import RealAmplitudes
+    from qiskit.primitives import StatevectorEstimator
     from qiskit.quantum_info import SparsePauliOp
-    from qiskit_aer.primitives import Estimator
 
-    ansatz = RealAmplitudes(2, reps=1)
+    ansatz = RealAmplitudes(2, reps=1)  # มีพารามิเตอร์ 4 ตัว
     hamiltonian = SparsePauliOp.from_list([("ZZ", -1), ("ZI", 0.5), ("IZ", 0.5)])
 
-    estimator = Estimator()
+    # StatevectorEstimator เป็น Estimator แบบ V2 ใน qiskit เอง ไม่ต้องพึ่ง qiskit-aer
+    estimator = StatevectorEstimator()
     job = estimator.run([(ansatz, hamiltonian, params)])
     return job.result()[0].data.evs
 

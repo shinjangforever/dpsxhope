@@ -23,7 +23,7 @@ from tqdm import tqdm
 
 from config import BM25_PATH, DATA_DIR, EMBED_MODEL, INDEX_PATH, META_PATH
 from chunking import chunk_document
-from textutil import tokenize
+from textutil import clean_extracted_text, tokenize
 
 SUPPORTED_SUFFIXES = {".txt", ".md", ".pdf"}
 
@@ -32,7 +32,12 @@ def read_document(path: Path) -> str:
     if path.suffix.lower() == ".pdf":
         from pypdf import PdfReader
 
-        return "\n\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages)
+        raw = "\n\n".join(page.extract_text() or "" for page in PdfReader(str(path)).pages)
+        lost = raw.count("\x00")
+        if lost:
+            print(f"⚠ {path.name}: PDF สูญเสียเครื่องหมายบางตัว {lost} ตำแหน่ง (มักเป็นวรรณยุกต์/การันต์ของภาษาไทย) "
+                  "การค้นด้วยคำยังใช้ได้ แต่ข้อความที่แสดงอาจขาดเครื่องหมาย ถ้าเป็นไปได้ให้ใช้ไฟล์ต้นฉบับ .md/.txt")
+        return clean_extracted_text(raw)
     return path.read_text(encoding="utf-8")
 
 

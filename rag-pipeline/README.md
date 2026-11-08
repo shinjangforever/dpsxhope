@@ -136,6 +136,34 @@ python pipeline.py eval
 
 ---
 
+## ภาษาไทยและ PDF
+
+ชุดทดสอบไทยอยู่ที่ `sample_docs_th/` (8 ไฟล์) กับ `eval_cases_th.json` (30 ข้อ แต่ละข้อระบุ `expected_source`)
+
+```bash
+python pipeline.py ingest --docs sample_docs_th/
+python pipeline.py eval --cases eval_cases_th.json --no-judge
+```
+
+ผลที่วัดเมื่อ 2026-11-08 ด้วย `paraphrase-multilingual-MiniLM-L12-v2` (เปรียบเทียบคร่าวๆ ได้ ไม่ใช่ benchmark เพราะเอกสารและคำถามเขียนโดยผู้ดูแล repo เอง):
+
+| ข้อมูล | chunk | ไฟล์ถูกอันดับ 1 | ไฟล์ถูกอยู่ใน top-4 |
+|---|---|---|---|
+| `.md` ไทย (hybrid) | 31 | 28/30 | 30/30 |
+| PDF ไทยที่ Edge สร้าง (hybrid) | 9 | 26/30 | 29/30 |
+
+สองแถวนี้เทียบกันตรงๆ ไม่ได้ เพราะ PDF ไม่มีหัวข้อ markdown จึงเหลือประมาณหนึ่ง chunk ต่อเอกสาร
+
+ข้อควรระวังกับ PDF ภาษาไทย:
+
+- PDF ที่สร้างจากเบราว์เซอร์อาจทำให้ไม้เอกที่ซ้อนบนสระและการันต์หายไป ตอนนี้ `ingest` ซ่อมอักขระเสีย ตัดวรรณยุกต์และการันต์ออกตอนแยกคำ และเตือนเมื่อพบการสูญเสีย แต่ข้อความที่แสดงเป็น citation จะยังขาดเครื่องหมายเหล่านั้น
+- ตรวจกับ PDF จาก Edge เพียงตัวอย่างเดียว PDF จาก Word, LibreOffice หรือระบบอื่นอาจต่างออกไป
+- PDF แบบสแกนต้องใช้ OCR ซึ่งยังไม่รองรับ
+- ถ้ามีไฟล์ต้นฉบับ `.md` หรือ `.txt` ให้ใช้ไฟล์นั้นแทน
+- หลังอัปเกรดที่เปลี่ยนตัวแยกคำ ต้องรัน `ingest` ใหม่ ไม่เช่นนั้นคำที่มีวรรณยุกต์จะค้นไม่เจอ
+
+---
+
 ## ไฟล์ / โมดูล
 
 | ไฟล์            | หน้าที่ |
@@ -148,7 +176,9 @@ python pipeline.py eval
 | `evaluate.py`   | `recall_at_k`, `context_precision`, `faithfulness_check`, `run_eval()` |
 | `pipeline.py`   | CLI orchestrator: subcommands `ingest` / `query` / `eval` |
 | `requirements.txt` | dependency ทั้งหมด |
+| `textutil.py`   | `tokenize()` แยกคำไทย/ละติน, `clean_extracted_text()` ซ่อมข้อความจาก PDF, `fold()` เทียบข้อความโดยไม่สนวรรณยุกต์ |
 | `sample_docs/`  | เอกสารตัวอย่างสำหรับ ingest |
+| `sample_docs_th/`, `eval_cases_th.json` | คลังเอกสารไทยและชุดคำถาม 30 ข้อสำหรับวัดการค้นหา |
 
 ---
 
