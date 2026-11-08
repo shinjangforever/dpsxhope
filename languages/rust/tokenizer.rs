@@ -1,11 +1,9 @@
 // tokenizer.rs — Fast token counting + text chunking in Rust
 // ใช้ใน RAG pipeline เพื่อ chunk เร็วๆ โดยไม่ต้องโหลด Python
 //
-// Cargo.toml dependencies:
-//   tiktoken-rs = "0.5"
-//   serde_json = "1"
+// ไม่ใช้ crate ภายนอก ใช้เฉพาะ std (ถ้าต้องการนับ token แม่นยำให้เพิ่ม tiktoken-rs เอง)
 //
-// รัน: cargo run --example tokenizer
+// รัน: rustc --edition 2021 tokenizer.rs && ./tokenizer   (Windows: tokenizer.exe)
 
 use std::collections::HashMap;
 

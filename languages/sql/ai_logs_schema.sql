@@ -1,5 +1,7 @@
 -- ai_logs_schema.sql — Database schema สำหรับ logging และ monitoring AI system
--- Compatible: PostgreSQL · SQLite · MySQL
+-- เป้าหมาย: PostgreSQL (ตรวจ syntax ด้วย pglast แล้ว ไม่ได้รันบนเซิร์ฟเวอร์จริง)
+-- ใช้กับ SQLite ตรง ๆ ไม่ได้: มี BIGSERIAL, TIMESTAMPTZ, DEFAULT NOW() ต้องแก้ก่อน
+-- ใช้กับ MySQL ตรง ๆ ไม่ได้: ไม่มี BIGSERIAL และ TIMESTAMPTZ
 
 -- ── LLM Request Logs ─────────────────────────────────────────────────────────
 CREATE TABLE llm_requests (

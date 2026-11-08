@@ -17,6 +17,12 @@
 - `llm-eval` มี CLI, รายงาน JSON, เกณฑ์ขั้นต่ำ และ Ollama
 - `ai-api` มี Bearer auth, CORS allowlist, ค่า host ที่ปลอดภัย และ Dockerfile
 - unit tests ใน `tests/`
+- `hope.py` สำหรับ `status`, `list`, `test`, `check-links` และ `check` โดยไม่ต้องใช้ API key หรือ Docker
+- `catalog.json` ระบุต้นแบบแต่ละชิ้น พร้อมสิ่งที่ทดสอบแล้วและยังไม่ได้ทดสอบ
+- GitHub Actions: รัน `hope.py check` และชุด mock บน Ubuntu และ Windows กับ Python 3.11 และ 3.13 (ยังไม่เคยรันบน GitHub)
+- เซิร์ฟเวอร์จำลอง Anthropic ใน `tests/` และชุดทดสอบ end-to-end ของ agent, workflow, `llm-eval` และ `ai-api`
+- คลังเอกสารไทย `rag-pipeline/sample_docs_th/` (8 ไฟล์) กับชุดคำถาม 30 ข้อ `eval_cases_th.json` ที่ตรวจไฟล์ต้นทางได้ด้วย `expected_source`
+- ผลลัพธ์ `source top-1` และ `source top-k` ใน `pipeline.py eval` เมื่อกรณีทดสอบมี `expected_source`
 
 ### Changed
 
@@ -25,8 +31,14 @@
 - ใช้ไฟล์ `.env` เดียวที่ root ของ repo
 - เปลี่ยน `agent-demo` เป็น `agent-kit` และ `workflows/examples` เป็น `workflows/templates`
 - RAG ใช้ embedding หลายภาษาและ BM25 ที่รองรับข้อความไทยเป็นค่าเริ่มต้น
+- ตัวแยกคำตัดวรรณยุกต์และการันต์ก่อนสร้าง n-gram **ต้องรัน `ingest` ใหม่กับ index ที่สร้างไว้ก่อนหน้า** ไม่เช่นนั้นคำที่มีเครื่องหมายเหล่านี้จะค้นไม่เจอ
+- `recall@k` ใน `evaluate.py` เทียบ keyword หลังตัดวรรณยุกต์ทั้งสองข้าง
+- README ของ `languages/` ตรงกับไฟล์ที่มีอยู่จริง และหัวไฟล์ SQL กับ Rust บอกข้อจำกัดตามจริง
 
 ### Fixed
+
+- ข้อความจาก PDF ภาษาไทยที่วรรณยุกต์หายเป็น NUL, สระอำถูกแยก และมีช่องว่างแทรก ตอนนี้ซ่อมก่อนทำ index และแจ้งเตือนเมื่อพบการสูญเสีย
+- `domains/quantum`: `grover_search` ล้มด้วย `unknown instruction: Q` และ `vqe_cost_function` เรียก Estimator เวอร์ชันเก่าผิดรูปแบบ
 
 - Quick Start ที่ย้ายโฟลเดอร์ผิดและอ้างไฟล์ `.env.example` ที่ไม่มี
 - การ import tools ใน `workflow_runner.py`

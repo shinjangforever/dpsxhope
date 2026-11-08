@@ -100,11 +100,33 @@ OLLAMA_MODEL=llama3.2
 > [!WARNING]
 > อย่า commit ไฟล์ `.env` และอย่าเปิด `ai-api` ออกอินเทอร์เน็ตโดยไม่ตั้ง `APP_API_KEY`
 
-## ทดสอบ
+## ตรวจและทดสอบ
+
+`hope.py` ใช้ไลบรารีมาตรฐานของ Python อย่างเดียว ไม่ต้องใช้ API key และไม่ต้องมี Docker
 
 ```bash
-python -m unittest discover -s tests
+python hope.py status
 ```
+
+ดูว่าเครื่องนี้ติดตั้งอะไรแล้ว ตั้ง key แล้วหรือยัง และ Ollama ทำงานอยู่ไหม
+
+```bash
+python hope.py list -v
+```
+
+ดูต้นแบบแต่ละชิ้น พร้อมสิ่งที่ทดสอบแล้วและสิ่งที่ยังไม่ได้ทดสอบ (ข้อมูลอยู่ใน [catalog.json](catalog.json))
+
+```bash
+python hope.py check
+```
+
+ตรวจ catalog ลิงก์ในเอกสาร และ unit test รวมถึงการค้นหาภาษาไทย ใช้ก่อนส่ง Pull Request
+
+```bash
+python hope.py test mock
+```
+
+ทดสอบ agent, workflow, `llm-eval` และ `ai-api` กับเซิร์ฟเวอร์จำลอง Anthropic ต้องรัน `npm ci --prefix ai-api` ก่อน ชุดนี้ไม่ตรวจคุณภาพคำตอบของโมเดลจริง
 
 ## หลักการ
 

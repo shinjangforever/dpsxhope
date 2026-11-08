@@ -16,6 +16,7 @@ import numpy as np
 import config
 from retrieve import retrieve
 from generate import complete, generate, format_context
+from textutil import fold
 
 # threshold สำหรับ context_precision: ถือว่า chunk "ตรง" ถ้า score เกินค่านี้
 SCORE_THRESHOLD = 0.0
@@ -32,11 +33,27 @@ def load_cases(path: str) -> list[dict]:
 def recall_at_k(question: str, expected_keywords: list[str], k: int = config.TOP_K) -> float:
     """สัดส่วน keyword ที่คาดหวัง ซึ่งปรากฏใน retrieved chunks (0..1)"""
     chunks = retrieve(question, top_k=k)
-    combined = " ".join(c["text"].lower() for c in chunks)
+    combined = fold(" ".join(c["text"] for c in chunks))
     if not expected_keywords:
         return 0.0
-    hits = sum(1 for kw in expected_keywords if kw.lower() in combined)
+    hits = sum(1 for kw in expected_keywords if fold(kw) in combined)
     return hits / len(expected_keywords)
+
+
+def source_hit(chunks: list[dict], item: dict) -> tuple[bool, bool]:
+    """
+    ใช้เมื่อกรณีทดสอบมี "expected_source": คืน (chunk อันดับ 1 ถูก, มี chunk ถูกอยู่ใน top-k)
+    chunk ถูก = มาจากไฟล์นั้น (เทียบชื่อไฟล์ไม่รวมนามสกุล) และมี keyword ที่คาดหวังอย่างน้อยหนึ่งคำ
+    เข้มกว่า recall@k เพราะ keyword เดียวกันอาจอยู่ในเอกสารอื่น
+    """
+    want = Path(item["expected_source"]).stem
+
+    def is_right(chunk: dict) -> bool:
+        name = chunk["source"].replace("\\", "/").rsplit("/", 1)[-1]
+        return Path(name).stem == want and any(fold(kw) in fold(chunk["text"]) for kw in item["expected_keywords"])
+
+    flags = [is_right(c) for c in chunks]
+    return bool(flags and flags[0]), any(flags)
 
 
 def context_precision(question: str, k: int = config.TOP_K) -> float:
@@ -74,6 +91,7 @@ def run_eval(cases_path: str = "eval_cases.json", min_recall: float = 0.0, use_j
     recall_scores = []
     precision_scores = []
     faithful_flags = []
+    first_hits, topk_hits = [], []   # เฉพาะกรณีที่มี expected_source
 
     for item in cases:
         q = item["question"]
@@ -82,6 +100,10 @@ def run_eval(cases_path: str = "eval_cases.json", min_recall: float = 0.0, use_j
         p = context_precision(q, k)
         recall_scores.append(r)
         precision_scores.append(p)
+        if "expected_source" in item:
+            first, in_topk = source_hit(retrieve(q, top_k=k), item)
+            first_hits.append(first)
+            topk_hits.append(in_topk)
 
         # ดึง chunks จริงครั้งเดียวเพื่อ generate คำตอบไปตรวจ faithfulness
         faith = {"faithful": None, "reason": "skipped"}
@@ -104,6 +126,9 @@ def run_eval(cases_path: str = "eval_cases.json", min_recall: float = 0.0, use_j
     print("=== สรุปเฉลี่ย ===")
     print(f"avg recall@{k}:          {np.mean(recall_scores):.2f}")
     print(f"avg context_precision: {np.mean(precision_scores):.2f}")
+    if first_hits:
+        print(f"source top-1:          {sum(first_hits)}/{len(first_hits)}")
+        print(f"source top-{k}:          {sum(topk_hits)}/{len(topk_hits)}")
     print(f"faithful rate:         {faithful_rate:.2f} (จาก {len(judged)}/{len(cases)} ข้อที่ตัดสินได้)")
     passed = float(np.mean(recall_scores)) >= min_recall
     print(f"result:                {'pass' if passed else 'fail'} (min recall {min_recall:.2f})")

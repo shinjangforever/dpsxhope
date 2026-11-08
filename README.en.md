@@ -99,11 +99,33 @@ OLLAMA_MODEL=llama3.2
 > [!WARNING]
 > Don't commit `.env`, and don't expose `ai-api` to the internet without setting `APP_API_KEY`.
 
-## Test
+## Check and test
+
+`hope.py` uses only the Python standard library. It needs no API key and no Docker.
 
 ```bash
-python -m unittest discover -s tests
+python hope.py status
 ```
+
+Shows what is installed, whether keys are set, and whether Ollama is running.
+
+```bash
+python hope.py list -v
+```
+
+Lists each blueprint with what has been tested and what has not (the data lives in [catalog.json](catalog.json)).
+
+```bash
+python hope.py check
+```
+
+Checks the catalog, links in the docs, and unit tests including Thai search. Run it before opening a pull request.
+
+```bash
+python hope.py test mock
+```
+
+Tests the agent, workflows, `llm-eval`, and `ai-api` against a mock Anthropic server. Run `npm ci --prefix ai-api` first. It does not judge the quality of real model answers.
 
 ## Contributing
 

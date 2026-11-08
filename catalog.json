@@ -1,0 +1,104 @@
+{
+  "updated": "2026-11-08",
+  "modules": [
+    {
+      "id": "rag-pipeline",
+      "path": "rag-pipeline",
+      "summary": "ถามตอบจากเอกสารของคุณ (.txt .md .pdf) พร้อมอ้างอิงแหล่ง รองรับการค้นภาษาไทย",
+      "run": "cd rag-pipeline && python pipeline.py ingest --docs <โฟลเดอร์> && python pipeline.py query \"คำถาม\"",
+      "needs": ["Python 3.11+", "pip install -r rag-pipeline/requirements.txt", "Ollama หรือ ANTHROPIC_API_KEY (เฉพาะขั้นตอบ)"],
+      "verified": [
+        "ค้นไทยด้วย BM25 อย่างเดียว: ไฟล์ถูกอันดับ 1 = 28/30, อยู่ใน top-4 = 30/30 (tests/test_thai_search.py)",
+        "hybrid + embedding จริง บนเอกสาร .md ไทย 31 chunk: top-1 = 28/30, top-4 = 30/30",
+        "PDF ไทยที่ Edge สร้าง (8 ไฟล์ 9 chunk): top-1 = 26/30, top-4 = 29/30 หลังซ่อมอักขระเสีย",
+        "ตอบจริงด้วย Ollama (gemma) พร้อมอ้างอิงแหล่ง",
+        "PDF ภาษาอังกฤษ และชุดตัวอย่างอังกฤษ recall@4 = 0.83"
+      ],
+      "unverified": [
+        "ตอบด้วย Claude API จริง",
+        "PDF ไทยจากโปรแกรมอื่นนอกจาก Edge และ PDF แบบสแกน (ต้อง OCR) ยังไม่รองรับ",
+        "ชุดทดสอบไทยเขียนโดยผู้ดูแล repo เอง เป็นด่านกันถอยหลัง ไม่ใช่ benchmark"
+      ]
+    },
+    {
+      "id": "agent-kit",
+      "path": "agent-kit",
+      "summary": "agent ที่ใช้ tool เองได้ มี tool registry, ขออนุมัติ, audit log และ workflow แบบ JSON",
+      "run": "cd agent-kit && python agent.py --tools calculate \"What is sqrt(65536)?\"",
+      "needs": ["Python 3.11+", "pip install -r agent-kit/requirements.txt", "ANTHROPIC_API_KEY"],
+      "verified": [
+        "agent เรียก tool, บันทึก audit log, ปฏิเสธ tool ที่ไม่มี และแจ้งเมื่อไม่มี key (เซิร์ฟเวอร์จำลอง)",
+        "workflow ทั้ง 2 template รันจบ (เซิร์ฟเวอร์จำลอง)"
+      ],
+      "unverified": ["การทำงานกับ Claude API จริง", "คุณภาพการเลือก tool ของโมเดลจริง"]
+    },
+    {
+      "id": "llm-eval",
+      "path": "llm-eval",
+      "summary": "ให้ LLM ตรวจคุณภาพคำตอบ และตั้งเกณฑ์ผ่านหรือตกผ่าน exit code เพื่อใช้ใน CI",
+      "run": "cd llm-eval && python evaluator.py --cases examples/cases.example.json --min-relevance 0.5",
+      "needs": ["Python 3.11+", "pip install -r llm-eval/requirements.txt", "ANTHROPIC_API_KEY หรือ GEMINI_API_KEY หรือ Ollama"],
+      "verified": [
+        "เกณฑ์ผ่านคืน exit 0 และเกณฑ์ที่เกินคืน exit 1, เขียนรายงาน JSON ได้ (เซิร์ฟเวอร์จำลอง)"
+      ],
+      "unverified": ["Claude และ Gemini จริง", "ความน่าเชื่อถือของคะแนนจาก LLM ที่ทำหน้าที่ตัดสิน"]
+    },
+    {
+      "id": "ai-api",
+      "path": "ai-api",
+      "summary": "API แบบ Express พร้อม Bearer auth, CORS allowlist, rate limit และ SSE",
+      "run": "cd ai-api && npm ci && node index.js",
+      "needs": ["Node.js 22", "ANTHROPIC_API_KEY", "APP_API_KEY (ถ้าเปิดนอกเครื่องตัวเอง)"],
+      "verified": [
+        "401 เมื่อไม่มีหรือใส่ token ผิด, 200 เมื่อถูก, 400 เมื่อ input ผิด, CORS allowlist, ไม่รับ system prompt จาก client ตามค่าเริ่มต้น",
+        "ปฏิเสธการเปิดนอกเครื่องถ้าไม่มี APP_API_KEY (เซิร์ฟเวอร์จำลอง)"
+      ],
+      "unverified": ["Docker build (Dockerfile ยังไม่เคย build)", "Claude API จริง", "rate limit ภายใต้โหลดจริง"]
+    },
+    {
+      "id": "local-models",
+      "path": "local-models",
+      "summary": "ควบคุม LLM engine ในเครื่อง ตรวจสถานะ และจัดรูปแบบ prompt",
+      "run": "python local-models/engine/controller.py status",
+      "needs": ["Python 3.11+", "Ollama หรือ llama.cpp"],
+      "verified": ["คำสั่ง status ทำงาน"],
+      "unverified": ["การสั่งเริ่ม/หยุด engine และ llama.cpp", "ยังไม่มีชุดทดสอบอัตโนมัติ"]
+    },
+    {
+      "id": "languages",
+      "path": "languages",
+      "summary": "ตัวอย่างงาน AI ในภาษาอื่น: Go, Rust, TypeScript, Bash, SQL, YAML",
+      "run": "ดูตารางใน languages/README.md",
+      "needs": ["เครื่องมือของแต่ละภาษา", "ANTHROPIC_API_KEY (Go และ TypeScript)"],
+      "verified": [
+        "TypeScript: tsc --strict ผ่าน และรันกับเซิร์ฟเวอร์จำลองได้ทั้ง chat และ structured output",
+        "Rust: คอมไพล์และรันได้ ใช้ std อย่างเดียว",
+        "Go: go vet และ go build ผ่าน",
+        "Bash: ตรวจ syntax ผ่าน คำสั่ง help, list, health ทำงาน",
+        "SQL: ผ่านการตรวจ syntax แบบ PostgreSQL (pglast) เท่านั้น",
+        "YAML: parse ได้ และ docker compose config ผ่าน"
+      ],
+      "unverified": [
+        "Go: ยังไม่ได้รันจริงเพราะ URL ของ API ถูกฝังในโค้ด",
+        "SQL: ยังไม่ได้รันบน PostgreSQL จริง และใช้กับ SQLite หรือ MySQL ตรง ๆ ไม่ได้",
+        "YAML: ยังไม่ได้ขึ้น stack จริง (ไม่ได้ใช้ Docker ในรอบนี้)"
+      ]
+    },
+    {
+      "id": "domains",
+      "path": "domains",
+      "summary": "จุดเริ่มต้นสำหรับ robotics, quantum และ cloud infrastructure",
+      "run": "python domains/quantum/qiskit_intro.py",
+      "needs": ["qiskit และ qiskit-aer (quantum)", "ROS 2 (robotics)"],
+      "verified": [
+        "quantum: วงจร Bell, Grover (เจอสถานะเป้าหมาย 94%) และ VQE ทำงานกับ Qiskit 2.6.2 และ Aer 0.18.2 หลังแก้ 2 จุด",
+        "robotics: คอมไพล์ผ่าน"
+      ],
+      "unverified": [
+        "quantum: คำอธิบายจาก LLM (ต้องมี key) และใช้ API ของ Qiskit ที่ประกาศเลิกใช้ในอนาคต (GroverOperator, RealAmplitudes)",
+        "robotics: ยังไม่เคยรันกับ ROS 2 หรือหุ่นยนต์จริง ควรเริ่มจาก simulator",
+        "cloud-infra: เป็นเอกสาร ไม่มีโค้ดให้รัน"
+      ]
+    }
+  ]
+}
