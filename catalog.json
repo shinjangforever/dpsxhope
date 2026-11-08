@@ -5,16 +5,19 @@
       "id": "rag-pipeline",
       "path": "rag-pipeline",
       "summary": "ถามตอบจากเอกสารของคุณ (.txt .md .pdf) พร้อมอ้างอิงแหล่ง รองรับการค้นภาษาไทย",
-      "run": "cd rag-pipeline && python pipeline.py ingest --docs <โฟลเดอร์> && python pipeline.py query \"คำถาม\"",
+      "run": "python hope.py (เมนูภาษาไทย) หรือ python hope.py setup แล้ว docs แล้ว ask \"คำถาม\"",
       "needs": ["Python 3.11+", "pip install -r rag-pipeline/requirements.txt", "Ollama หรือ ANTHROPIC_API_KEY (เฉพาะขั้นตอบ)"],
       "verified": [
         "ค้นไทยด้วย BM25 อย่างเดียว: ไฟล์ถูกอันดับ 1 = 28/30, อยู่ใน top-4 = 30/30 (tests/test_thai_search.py)",
         "hybrid + embedding จริง บนเอกสาร .md ไทย 31 chunk: top-1 = 28/30, top-4 = 30/30",
         "PDF ไทยที่ Edge สร้าง (8 ไฟล์ 9 chunk): top-1 = 26/30, top-4 = 29/30 หลังซ่อมอักขระเสีย",
         "ตอบจริงด้วย Ollama (gemma) พร้อมอ้างอิงแหล่ง",
-        "PDF ภาษาอังกฤษ และชุดตัวอย่างอังกฤษ recall@4 = 0.83"
+        "PDF ภาษาอังกฤษ และชุดตัวอย่างอังกฤษ recall@4 = 0.83",
+        "Windows แบบมือใหม่ผ่าน start.cmd ในโฟลเดอร์ใหม่: setup (ติดตั้งจริง .venv 1.1 GB ราว 10 นาที) > demo ค้นอย่างเดียว > docs > ask กับ Ollama ได้คำตอบถูกพร้อมอ้างอิง"
       ],
       "unverified": [
+        "macOS, Linux และ Termux (start.sh) ยังไม่ได้ทดสอบจริง",
+        "Windows ที่วางโฟลเดอร์ลึกเกิน 260 ตัวอักษรติดตั้งไม่สำเร็จ (พบจริง) ตอนนี้มีคำเตือนก่อนติดตั้ง",
         "ตอบด้วย Claude API จริง",
         "PDF ไทยจากโปรแกรมอื่นนอกจาก Edge และ PDF แบบสแกน (ต้อง OCR) ยังไม่รองรับ",
         "ชุดทดสอบไทยเขียนโดยผู้ดูแล repo เอง เป็นด่านกันถอยหลัง ไม่ใช่ benchmark"

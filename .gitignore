@@ -19,9 +19,11 @@ Thumbs.db
 .vscode/settings.json
 .idea/
 
-# Data
+# Data (my-docs คือเอกสารส่วนตัวของผู้ใช้ ห้ามขึ้น Git)
+my-docs/
 *.faiss
 rag-pipeline/data/
+rag-pipeline/data-demo/
 logs/
 *.index
 chroma_db/

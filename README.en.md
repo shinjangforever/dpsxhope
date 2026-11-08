@@ -11,7 +11,8 @@
 </p>
 
 <p align="center">
-    <a href="#choose-a-blueprint">Choose a blueprint</a> ·
+  <a href="#quick-start">Quick start</a> ·
+  <a href="#choose-a-blueprint">Choose a blueprint</a> ·
   <a href="#use-your-documents">Use your documents</a> ·
   <a href="ROADMAP.md">Roadmap (Thai)</a> ·
   <a href="README.md">ภาษาไทย</a>
@@ -20,6 +21,31 @@
 **dpsxhope** is a Thai-first AI engineering handbook and set of blueprints you can adapt to your own documents, systems, and work.
 
 It starts with RAG, agents, evaluation, and AI APIs. It's growing into a knowledge map that connects AI with robotics, anatomy, biology, quantum computing, business, games, sports, and 3D.
+
+## Quick start
+
+No terminal skills needed: a menu (in Thai) walks you through it. The only requirement is **Python 3.11 or later** ([download](https://www.python.org/downloads/); on Windows tick "Add python.exe to PATH" in the installer).
+
+1. **Download:** click the green Code button on GitHub, choose Download ZIP, and unzip it close to the drive root, for example `C:\dpsxhope` (Windows limits paths to 260 characters and the search libraries nest deeply). Or use `git clone`.
+2. **Open the menu:**
+   - Windows: double-click `start.cmd`. If Windows asks about security, the file is a short script you can read in Notepad first.
+   - macOS, Linux: open a terminal in this folder and run `bash start.sh`.
+3. **Press Enter on the step the menu recommends.** It checks your machine and tells you what to do next.
+
+| Item | What it does |
+|---|---|
+| 1 | First-time setup: installs libraries and lets you choose the AI that writes answers (the first run takes several minutes) |
+| 2 | Try it first: a demo on sample documents that never touches your own files. The search part works even without a key |
+| 3 | Add my documents: put `.txt`, `.md`, `.pdf` files in the `my-docs` folder, or pick another folder |
+| 4 | Ask questions about your documents, with cited sources |
+| 5 | Run an agent (uses Claude) |
+| 6 | Settings: switch AI, enter an API key, change how many sources are used |
+| 7 | Check this machine and see what's missing |
+| 8 | Create a new tool for the agent from a template |
+
+Searching your documents always happens on your machine. With **Ollama** the whole thing stays local and has no API fee. With **Claude**, the passages relevant to each question are sent to Anthropic and usage is billed, so don't use confidential or personal documents unless you are allowed to share them.
+
+Prefer a terminal? `python hope.py setup`, `python hope.py demo`, `python hope.py docs`, `python hope.py ask "your question"`, `python hope.py config set RAG_TOP_K 6`, and `python hope.py new-tool check_stock` do the same things. Set an API key with `python hope.py config set ANTHROPIC_API_KEY` and leave the value off: it asks without echoing, so the key doesn't land in your shell history.
 
 ## Choose a blueprint
 

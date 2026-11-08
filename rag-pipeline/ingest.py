@@ -48,7 +48,11 @@ def load_docs(docs_dir: str) -> list[dict]:
         raise SystemExit(f"ไม่พบโฟลเดอร์เอกสาร: {base}")
 
     docs, skipped = [], []
-    paths = sorted(p for p in base.rglob("*") if p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES)
+    candidates = sorted(p for p in base.rglob("*") if p.is_file() and p.suffix.lower() in SUPPORTED_SUFFIXES)
+    # ไฟล์ที่ชื่อขึ้นต้นด้วย _ หรือ . ถูกข้าม (ใช้เก็บไฟล์อธิบายหรือพักไฟล์ไว้ โดยไม่ต้องย้ายออกจากโฟลเดอร์)
+    paths = [p for p in candidates if not p.name.startswith(("_", "."))]
+    if len(paths) < len(candidates):
+        print(f"ℹ ข้าม {len(candidates) - len(paths)} ไฟล์ที่ชื่อขึ้นต้นด้วย _ หรือ . (ตั้งใจให้ข้าม ถ้าต้องการให้อ่านให้เปลี่ยนชื่อ)")
     for path in paths:
         try:
             text = read_document(path)
