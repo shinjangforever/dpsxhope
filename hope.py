@@ -42,7 +42,7 @@ SKIP_DIRS = {".git", "node_modules", "venv", ".venv", "__pycache__", "dist", "my
 
 # ชุดทดสอบ: unit ไม่ต้องติดตั้งอะไรเพิ่ม (ถ้าไม่มี rank_bm25 จะข้ามข้อที่ต้องใช้)
 SUITES = {
-    "unit": ["test_blueprints.py", "test_thai_search.py", "test_catalog.py", "test_easy_cli.py"],
+    "unit": ["test_blueprints.py", "test_thai_search.py", "test_catalog.py", "test_easy_cli.py", "test_robotics_demo.py"],
     "mock": ["test_mock_e2e.py"],
 }
 SUITES["all"] = SUITES["unit"] + SUITES["mock"]

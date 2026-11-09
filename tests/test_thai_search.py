@@ -16,7 +16,7 @@ ROOT = Path(__file__).resolve().parents[1]
 RAG = ROOT / "rag-pipeline"
 sys.path.insert(0, str(RAG))
 
-from textutil import clean_extracted_text, fold  # noqa: E402
+from textutil import clean_extracted_text, fold, tokenize  # noqa: E402
 
 HAS_BM25 = importlib.util.find_spec("rank_bm25") is not None
 HAS_PYPDF = importlib.util.find_spec("pypdf") is not None
@@ -25,7 +25,6 @@ if HAS_BM25:
     from rank_bm25 import BM25Okapi
 
     from chunking import chunk_document
-    from textutil import tokenize
 
 TOP_K = 4
 MIN_SOURCE_HIT = 0.95  # สัดส่วนข้อที่ต้องเจอทั้งไฟล์และ keyword ใน top-4
