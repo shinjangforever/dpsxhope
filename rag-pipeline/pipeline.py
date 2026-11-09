@@ -2,7 +2,7 @@
 pipeline.py — CLI orchestrator รวมทุกขั้นของ RAG pipeline ไว้ที่เดียว
 flow: ingest → retrieve → generate → eval
 
-ใช้ argparse subcommands 3 คำสั่ง:
+ใช้ argparse subcommands (ingest, query, chat, eval):
 
   1) ingest  — โหลดเอกสาร + สร้าง index
        python pipeline.py ingest --docs sample_docs/
@@ -15,6 +15,7 @@ flow: ingest → retrieve → generate → eval
 """
 import argparse
 import json
+import sys
 
 from dotenv import load_dotenv
 
@@ -42,19 +43,34 @@ def ask(query: str, top_k: int = config.TOP_K) -> dict:
     if not chunks:
         raise SystemExit("ยังไม่มี index ให้รัน: python pipeline.py ingest --docs <โฟลเดอร์เอกสาร>")
 
+    return {"query": query, "answer": generate(query, chunks), "sources": _sources(chunks)}
+
+
+def _sources(chunks: list) -> list[dict]:
+    return [
+        {
+            "ref": i,
+            "source": c.get("source", ""),
+            "heading": c.get("heading", ""),
+            "score": round(float(c.get("score", 0)), 4),
+            "text": c.get("text", ""),
+        }
+        for i, c in enumerate(chunks, 1)
+    ]
+
+
+def search_only(query: str, top_k: int = config.TOP_K) -> dict:
+    """ค้นช่วงเอกสารที่เกี่ยวข้องอย่างเดียว ไม่เรียก AI (ใช้ได้โดยไม่ต้องมี key หรือ Ollama)"""
+    from retrieve import retrieve
+
+    chunks = retrieve(query, top_k=top_k)
+    if not chunks:
+        raise SystemExit("ยังไม่มี index ให้รัน: python pipeline.py ingest --docs <โฟลเดอร์เอกสาร>")
+    best = " ".join(chunks[0]["text"].split())
     return {
         "query": query,
-        "answer": generate(query, chunks),
-        "sources": [
-            {
-                "ref": i,
-                "source": c.get("source", ""),
-                "heading": c.get("heading", ""),
-                "score": round(float(c.get("score", 0)), 4),
-                "text": c.get("text", ""),
-            }
-            for i, c in enumerate(chunks, 1)
-        ],
+        "answer": f"(โหมดค้นหาอย่างเดียว ไม่เรียก AI) ช่วงเอกสารที่เกี่ยวข้องที่สุด: {best[:300]}",
+        "sources": _sources(chunks),
     }
 
 
@@ -64,11 +80,42 @@ def cmd_query(args: argparse.Namespace) -> None:
     if args.json:
         print(json.dumps(result, ensure_ascii=False, indent=2))
         return
+    print_result(result)
 
-    print(f"\n📝 answer:\n{result['answer']}\n")
-    print("sources:")
+
+def print_result(result: dict) -> None:
+    """แสดงคำตอบ ตามด้วยแหล่งอ้างอิง (ชื่อไฟล์และหัวข้อ)"""
+    print(f"\n📝 คำตอบ:\n{result['answer']}\n")
+    print("แหล่งอ้างอิง:")
     for item in result["sources"]:
-        print(f"  [{item['ref']}] score={item['score']:.3f} | {item['source']} | {item['heading']}")
+        name = item["source"].replace("\\", "/").rsplit("/", 1)[-1]
+        heading = f" — {item['heading']}" if item["heading"] else ""
+        print(f"  [{item['ref']}] {name}{heading}  (คะแนน {item['score']:.3f})")
+
+
+def cmd_chat(args: argparse.Namespace) -> None:
+    """ถามต่อเนื่องหลายข้อ โหลดโมเดลครั้งเดียว เว้นว่างหรือพิมพ์ exit เพื่อออก"""
+    interactive = sys.stdin.isatty()
+    answer = search_only if args.search_only else ask
+    if interactive:
+        print("พิมพ์คำถามแล้วกด Enter (เว้นว่างหรือพิมพ์ exit เพื่อออก)")
+    while True:
+        try:
+            text = input("\nคำถาม> " if interactive else "").strip()
+        except (EOFError, KeyboardInterrupt):
+            print()
+            break
+        if not text or text.lower() in {"exit", "quit", "q"}:
+            break
+        if not interactive:
+            print(f"\nคำถาม> {text}")  # ป้อนคำถามจากไฟล์/โปรแกรมอื่น จึงต้องแสดงเองให้อ่านรู้เรื่อง
+        try:
+            print_result(answer(text, top_k=args.top_k))
+        except SystemExit as exc:
+            print(exc)
+            break
+        except Exception as exc:
+            print(f"ตอบไม่ได้: {exc}")
 
 
 def cmd_eval(args: argparse.Namespace) -> None:
@@ -101,6 +148,12 @@ def build_parser() -> argparse.ArgumentParser:
     p_query.add_argument("--top-k", type=int, default=config.TOP_K, help="จำนวนแหล่งอ้างอิง")
     p_query.add_argument("--json", action="store_true", help="แสดงผลเป็น JSON")
     p_query.set_defaults(func=cmd_query)
+
+    # chat
+    p_chat = sub.add_parser("chat", help="ถามต่อเนื่องหลายข้อ")
+    p_chat.add_argument("--top-k", type=int, default=config.TOP_K, help="จำนวนแหล่งอ้างอิง")
+    p_chat.add_argument("--search-only", action="store_true", help="แสดงเฉพาะช่วงเอกสารที่ค้นเจอ ไม่เรียก AI")
+    p_chat.set_defaults(func=cmd_chat)
 
     # eval
     p_eval = sub.add_parser("eval", help="รันชุดประเมินคุณภาพ")

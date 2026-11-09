@@ -134,6 +134,13 @@ python pipeline.py eval
 
 แต่ละ module ก็รันเดี่ยวได้ เช่น `python generate.py "..."` หรือ `python evaluate.py`
 
+คำสั่งเพิ่มเติม:
+
+- `python pipeline.py chat` ถามต่อเนื่องหลายข้อ โหลดโมเดลครั้งเดียว (เว้นว่างหรือพิมพ์ exit เพื่อออก)
+- `python pipeline.py chat --search-only` แสดงเฉพาะช่วงเอกสารที่ค้นเจอ ไม่เรียก AI จึงไม่ต้องมี key หรือ Ollama
+- `ingest` ข้ามไฟล์ที่ชื่อขึ้นต้นด้วย `_` หรือ `.` และแจ้งจำนวนที่ข้าม เปลี่ยนชื่อไฟล์ถ้าต้องการให้ถูกอ่าน
+- ถ้าไม่ถนัด terminal ใช้ `python hope.py` ที่ root ของ repo แทนได้ (เมนูภาษาไทย)
+
 ---
 
 ## ภาษาไทยและ PDF

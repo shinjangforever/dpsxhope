@@ -23,6 +23,11 @@
 - เซิร์ฟเวอร์จำลอง Anthropic ใน `tests/` และชุดทดสอบ end-to-end ของ agent, workflow, `llm-eval` และ `ai-api`
 - คลังเอกสารไทย `rag-pipeline/sample_docs_th/` (8 ไฟล์) กับชุดคำถาม 30 ข้อ `eval_cases_th.json` ที่ตรวจไฟล์ต้นทางได้ด้วย `expected_source`
 - ผลลัพธ์ `source top-1` และ `source top-k` ใน `pipeline.py eval` เมื่อกรณีทดสอบมี `expected_source`
+- เมนูภาษาไทยผ่าน `python hope.py` (หรือดับเบิลคลิก `start.cmd` บน Windows, `bash start.sh` บน macOS และ Linux) แนะนำขั้นต่อไปตามสถานะเครื่อง
+- คำสั่งใหม่ของ `hope.py`: `setup` (ติดตั้งใน `.venv`, เลือก Ollama หรือ Claude, ใส่ key แบบไม่แสดงตัวอักษร), `demo`, `docs`, `ask`, `agent`, `config`, `new-tool` และ `status` ที่บอกว่าขาดอะไร
+- `pipeline.py chat` กับ `--search-only` (ค้นอย่างเดียวโดยไม่ต้องมี key)
+- `hope.py check-links` ตรวจหัวข้อที่ลิงก์ชี้ไป (`#...`) และลิงก์แบบ HTML ด้วย
+- ตารางเทียบ Ollama กับ Claude (ค่าใช้จ่ายและข้อมูลที่ออกจากเครื่อง) และตารางสถานการณ์ใช้งานใน README
 
 ### Changed
 
@@ -35,8 +40,11 @@
 - `recall@k` ใน `evaluate.py` เทียบ keyword หลังตัดวรรณยุกต์ทั้งสองข้าง
 - README ของ `languages/` ตรงกับไฟล์ที่มีอยู่จริง และหัวไฟล์ SQL กับ Rust บอกข้อจำกัดตามจริง
 
+- `ingest` ข้ามไฟล์ที่ชื่อขึ้นต้นด้วย `_` หรือ `.` (ไฟล์ที่เคยชื่อแบบนี้จะไม่ถูกอ่านอีก ให้เปลี่ยนชื่อ) และ `pipeline.py` แสดงแหล่งอ้างอิงเป็นชื่อไฟล์และหัวข้อ
+
 ### Fixed
 
+- ลิงก์ "เริ่มใน 5 นาที" ที่ด้านบนของ README ชี้ไปหัวข้อที่ไม่มีอยู่
 - ข้อความจาก PDF ภาษาไทยที่วรรณยุกต์หายเป็น NUL, สระอำถูกแยก และมีช่องว่างแทรก ตอนนี้ซ่อมก่อนทำ index และแจ้งเตือนเมื่อพบการสูญเสีย
 - `domains/quantum`: `grover_search` ล้มด้วย `unknown instruction: Q` และ `vqe_cost_function` เรียก Estimator เวอร์ชันเก่าผิดรูปแบบ
 
