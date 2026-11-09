@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="760" height="504" viewBox="0 0 760 504" font-family="Leelawadee UI, Tahoma, sans-serif" font-size="13">
 <rect width="760" height="504" fill="#0a0a0b"/>
-<text x="70" y="24" fill="#f5d76e" font-size="16">ตำแหน่งของหุ่นยนต์ตามเวลา (เป้าหมาย 1 เมตร)</text>
+<text x="70" y="20" fill="#f5d76e" font-size="16">ตำแหน่งของหุ่นยนต์ตามเวลา (เป้าหมาย 1 เมตร)</text>
 <line x1="70" x2="736" y1="340.0" y2="340.0" stroke="#222"/>
 <text x="62" y="344.0" fill="#999" text-anchor="end">-0.15</text>
 <line x1="70" x2="736" y1="280.0" y2="280.0" stroke="#222"/>

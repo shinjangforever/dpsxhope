@@ -116,6 +116,65 @@ class SimulationTest(unittest.TestCase):
         self.assertTrue(all(math.isfinite(x) for x in result.pos))
 
 
+class MechanismGuardTest(unittest.TestCase):
+    """ชั้นป้องกันของกลไกต้องกันได้แม้หัวใจ ด่านซอฟต์แวร์ หรือตัวควบคุมผิดพลาด และต้องไม่รบกวนงานปกติ"""
+
+    def run_case(self, target, **overrides):
+        return sim.simulate(target, replace(sim.Params(), duration=2.0, **overrides)).metrics
+
+    def test_normal_work_never_trips_the_guard(self):
+        for target in (-2.0, -1.0, 0.5, 1.0, 2.0):
+            with self.subTest(target=target):
+                m = self.run_case(target)
+                self.assertFalse(m["guard_tripped"])
+                self.assertFalse(m["crashed"])
+
+    def test_the_comparison_scenarios_at_one_metre_are_not_cut_off(self):
+        for label, overrides in sim.SCENARIOS:
+            with self.subTest(label=label):
+                m = sim.simulate(1.0, replace(sim.Params(), **overrides)).metrics
+                self.assertFalse(m["guard_tripped"])
+
+    def test_hallucinated_target_with_the_gate_bypassed_crashes_without_the_guard(self):
+        m = self.run_case(5.0, guard=False)
+        self.assertTrue(m["crashed"])
+        self.assertGreater(m["impact_speed_m_s"], 5.0)
+
+    def test_guard_stops_a_hallucinated_target_before_the_end_of_the_rail(self):
+        for target in (5.0, -9.0, 50.0):                     # กฎไม่รู้ว่าเป้าคืออะไร จึงกันได้ทุกค่า
+            with self.subTest(target=target):
+                m = self.run_case(target)
+                self.assertTrue(m["guard_tripped"])
+                self.assertFalse(m["crashed"])
+                self.assertLess(m["peak_position_m"], sim.Params().hard_stop_m)
+
+    def test_watchdog_catches_a_frozen_controller(self):
+        crashed = self.run_case(2.0, guard=False, freeze_at_s=0.2)
+        self.assertTrue(crashed["crashed"])
+        guarded = self.run_case(2.0, freeze_at_s=0.2)
+        self.assertFalse(guarded["crashed"])
+        self.assertIn("watchdog", guarded["guard_reason"])
+        self.assertAlmostEqual(guarded["guard_trip_s"], 0.2 + sim.Params().watchdog_s, delta=0.01)
+
+    def test_guard_cuts_power_and_the_cut_is_latched(self):
+        result = sim.simulate(5.0, replace(sim.Params(), duration=2.0))
+        self.assertTrue(result.metrics["guard_tripped"])
+        self.assertAlmostEqual(result.force[-1], 0.0, places=9)
+        self.assertLess(max(abs(x) for x in result.pos), sim.Params().hard_stop_m)
+
+    def test_guard_only_sees_measurements_not_the_target(self):
+        # ตัวควบคุมสั่งผิดมากแค่ไหน ชั้นป้องกันตัดสินจากตำแหน่ง ความเร็ว และชีพจรเท่านั้น
+        for kp in (40.0, 1e3):
+            with self.subTest(kp=kp):
+                m = sim.simulate(5.0, replace(sim.Params(), kp=kp, duration=2.0)).metrics
+                self.assertFalse(m["crashed"])
+
+    def test_a_badly_tuned_controller_is_also_cut_when_it_leaves_the_safe_range(self):
+        m = sim.simulate(2.0, replace(sim.Params(), kp=200.0, ki=0.0, kd=1.0)).metrics
+        self.assertTrue(m["guard_tripped"])
+        self.assertFalse(m["crashed"])
+
+
 class OutputTest(unittest.TestCase):
     def test_svg_is_valid_xml_with_one_line_per_run_and_escaped_labels(self):
         runs = [("a < b & c", sim.simulate(1.0)), ("ปกติ", sim.simulate(1.0, replace(sim.Params(), kp=20.0)))]
@@ -166,6 +225,35 @@ class CommandLineTest(unittest.TestCase):
             self.assertEqual(code, 0)
             self.assertTrue(path.exists())
         self.assertEqual(out.count("เกินเป้าสูงสุด"), len(sim.SCENARIOS))
+
+    def test_bypassed_gate_is_caught_by_the_guard_but_not_when_both_are_off(self):
+        code, out, _ = self.run_main(["ไปที่ 5 เมตร", "--bypass-gate"])
+        self.assertEqual(code, 0)
+        self.assertIn("ข้าม", out)
+        self.assertIn("ตัดกำลังและเบรก", out)
+        code, _, err = self.run_main(["ไปที่ 5 เมตร", "--bypass-gate", "--no-guard"])
+        self.assertEqual(code, 3)
+        self.assertIn("ชนปลายราง", err)
+
+    def test_frozen_controller_flag(self):
+        self.assertEqual(self.run_main(["ไปที่ 2 เมตร", "--freeze-at", "0.2"])[0], 0)
+        self.assertEqual(self.run_main(["ไปที่ 2 เมตร", "--freeze-at", "0.2", "--no-guard"])[0], 3)
+
+    def test_faults_mode_writes_a_chart_with_one_line_per_fault(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "f.svg"
+            code, out, _ = self.run_main(["--faults", "--svg", str(path)])
+            self.assertEqual(code, 0)
+            ns = "{http://www.w3.org/2000/svg}"
+            self.assertEqual(len(ET.parse(path).getroot().findall(f"{ns}polyline")), len(sim.FAULTS))
+        self.assertEqual(out.count("[ชน]"), 2)
+        self.assertEqual(out.count("[ชั้นป้องกัน]"), 2)
+
+    def test_committed_fault_chart_is_valid(self):
+        path = DEMO.parent / "compare-faults.svg"
+        self.assertTrue(path.exists(), "ต้องมี compare-faults.svg ที่สร้างจาก simulate.py --faults")
+        ns = "{http://www.w3.org/2000/svg}"
+        self.assertEqual(len(ET.parse(path).getroot().findall(f"{ns}polyline")), len(sim.FAULTS))
 
     def test_workspace_flag_changes_the_gate(self):
         self.assertEqual(self.run_main(["ไปที่ 3 เมตร", "--workspace", "3"])[0], 0)
