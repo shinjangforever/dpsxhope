@@ -47,6 +47,13 @@ Searching your documents always happens on your machine. With **Ollama** the who
 
 Prefer a terminal? `python hope.py setup`, `python hope.py demo`, `python hope.py docs`, `python hope.py ask "your question"`, `python hope.py config set RAG_TOP_K 6`, and `python hope.py new-tool check_stock` do the same things. Set an API key with `python hope.py config set ANTHROPIC_API_KEY` and leave the value off: it asks without echoing, so the key doesn't land in your shell history.
 
+## Field maps
+
+AI connected to other fields. Each field has a map, lessons, and a runnable demo (currently in Thai). See [fields/](fields/README.md).
+
+- **Robotics (v0.1):** [map](fields/robotics/README.md) and [lesson 1, from heart to mechanism](fields/robotics/01-heart-to-mechanism.md). It follows one spoken command through five layers down to the motor. Run the demo now, no hardware needed:
+  `python fields/robotics/heart-to-mechanism/simulate.py "ไปที่ 1 เมตร"` (or `"move to 1"`)
+
 ## Choose a blueprint
 
 | Build | Blueprint | Adapt it by | Requires |
