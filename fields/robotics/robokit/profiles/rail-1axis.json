@@ -1,0 +1,19 @@
+{
+  "name": "แกนเดี่ยวบนราง (ตรงกับเดโมบทที่ 1)",
+  "description": "พื้นที่ ±2 m ปลายรางที่ ±2.5 m แก้ตัวเลขให้ตรงกับเครื่องของคุณก่อนใช้",
+  "units": "เมตร, เมตรต่อวินาที",
+  "ignore_fields": ["confidence", "reason"],
+  "always_allow": ["stop"],
+  "rate_limit_per_s": 10,
+  "actions": {
+    "move_to": {
+      "params": {
+        "x": {"type": "number", "min": -2.0, "max": 2.0, "unit": "m"},
+        "speed": {"type": "number", "min": 0.01, "max": 0.5, "unit": "m/s", "default": 0.2}
+      },
+      "required": ["x"],
+      "max_step": {"x": 1.0}
+    },
+    "stop": {}
+  }
+}
