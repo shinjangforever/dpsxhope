@@ -22,7 +22,7 @@ class Setting:
 
 
 SETTINGS = [
-    Setting("LLM_PROVIDER", "AI ที่ใช้ตอบคำถามจากเอกสาร", "choice", "anthropic",
+    Setting("LLM_PROVIDER", "AI ที่ใช้ตอบ (ถามเอกสาร agent และงานอัตโนมัติ)", "choice", "anthropic",
             choices=("anthropic", "ollama"), note="anthropic = Claude (ต้องมี key), ollama = โมเดลในเครื่อง"),
     Setting("OLLAMA_MODEL", "ชื่อโมเดลใน Ollama", "text", "llama3.2"),
     Setting("CLAUDE_MODEL", "ชื่อโมเดล Claude", "text", "claude-haiku-5-5"),

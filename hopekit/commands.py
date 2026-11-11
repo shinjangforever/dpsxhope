@@ -15,7 +15,7 @@ SUPPORTED = {".txt", ".md", ".pdf"}
 RAG_MODULES = runner.PROFILES["rag"]["modules"]
 SAMPLES = {"th": "sample_docs_th", "en": "sample_docs"}
 # เลขข้อในเมนูหลัก ใช้ร่วมกันเพื่อให้ข้อความแนะนำตรงกับเมนูเสมอ
-MENU_KEYS = {"setup": "1", "demo": "2", "docs": "3", "ask": "4", "agent": "5", "settings": "6", "status": "7", "tool": "8"}
+MENU_KEYS = {"setup": "1", "demo": "2", "docs": "3", "ask": "4", "agent": "5", "settings": "6", "status": "7", "tool": "8", "auto": "9"}
 DEMO_QUESTIONS = [
     "ลาพักร้อนได้กี่วันต่อปี และต้องแจ้งล่วงหน้านานแค่ไหน",
     "ถ้าสินค้าแตกเสียหายระหว่างขนส่งต้องทำอย่างไร",
@@ -156,7 +156,8 @@ def status(ctx: Context) -> int:
     else:
         say("  ยังไม่มีดัชนี (ใส่เอกสารก่อนถึงจะถามได้)")
 
-    say(f"\nขั้นต่อไป: {next_step(ctx)[1]}")
+    say("\nดูภาษาและเครื่องมือทั้งหมดของเครื่องนี้: python hope.py stack")
+    say(f"ขั้นต่อไป: {next_step(ctx)[1]}")
     return 0
 
 
@@ -176,9 +177,7 @@ def _engine_options(profile: str, models: list[str] | None) -> list[tuple[str, s
               else "Ollama ในเครื่อง (ฟรี) — ยังไม่พบ ต้องติดตั้งและเปิด Ollama ก่อน")
     claude = "Claude API — ต้องมี API key และคิดค่าใช้จ่ายตามการใช้งาน"
     gemini = "Gemini API — ใช้กับ llm-eval เท่านั้น ต้องมี API key"
-    if profile == "agent":
-        return [("claude", claude)]
-    if profile == "rag":
+    if profile in ("agent", "rag"):
         return [("ollama", ollama), ("claude", claude)]
     return [("ollama", ollama), ("claude", claude), ("gemini", gemini)]
 
@@ -432,12 +431,17 @@ def ask(ctx: Context, question: str | None = None, top_k: int | None = None) -> 
 
 def agent(ctx: Context, task: str | None = None, tools: str | None = None) -> int:
     io = ctx.io
-    python = ctx.resolve(runner.PROFILES["agent"]["modules"], ctx.root)
+    # agent กับ Ollama ใช้ไลบรารีมาตรฐานอย่างเดียว จึงไม่ต้องติดตั้งอะไรเพิ่ม
+    local = (env_value(ctx, "LLM_PROVIDER", "anthropic") or "").lower() == "ollama"
+    python = ctx.resolve([] if local else runner.PROFILES["agent"]["modules"], ctx.root)
     if not python:
         return _not_installed(ctx, runner.PROFILES["agent"]["label"])
-    if not env_value(ctx, "ANTHROPIC_API_KEY"):
-        io.say("agent ใช้ Claude เท่านั้น แต่ยังไม่ได้ตั้ง ANTHROPIC_API_KEY")
-        io.say("ใส่ key ที่เมนูตั้งค่า หรือรัน: python hope.py config set ANTHROPIC_API_KEY")
+    st = engine.engine_status(ctx.root, models_fn=ctx.models_fn)
+    if not st.ok:
+        io.say(f"AI ที่ใช้กับ agent ยังไม่พร้อม: {st.text}")
+        if st.fix:
+            io.say(f"วิธีแก้: {st.fix}")
+        io.say("agent ใช้ได้ทั้ง Claude และ Ollama ในเครื่อง (ต้องเป็นโมเดลที่รองรับ tools ดูได้ที่ python hope.py stack)")
         return 1
     available = scaffold.existing_tools(ctx.root / "agent-kit" / "tools")
     if not task:
@@ -448,6 +452,26 @@ def agent(ctx: Context, task: str | None = None, tools: str | None = None) -> in
             return 2
     args = [python, "agent.py"] + (["--tools", tools] if tools else []) + [task]
     return ctx.run(args, cwd=ctx.root / "agent-kit")
+
+
+def auto_jobs(ctx: Context) -> list[tuple[str, str]]:
+    """(ชื่อไฟล์งาน, คำอธิบาย) ของงานอัตโนมัติใน agent-kit/jobs"""
+    found = []
+    for path in sorted((ctx.root / "agent-kit" / "jobs").glob("*.json")):
+        try:
+            job = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            continue
+        uses_ai = any(s.get("type") == "llm" for s in job.get("steps", []) if isinstance(s, dict))
+        found.append((path.stem, f"{job.get('description', path.stem)}{' [ใช้ AI]' if uses_ai else ''}"))
+    return found
+
+
+def auto(ctx: Context, job: str, action: str = "run", dry_run: bool = False) -> int:
+    """รันงานอัตโนมัติหนึ่งรอบ (หรือ check) ด้วย Python ของ .venv ถ้ามี"""
+    python = runner.venv_python(ctx.root) or sys.executable
+    args = [python, ctx.root / "agent-kit" / "automate.py", action, job] + (["--dry-run"] if dry_run else [])
+    return ctx.run(args, cwd=ctx.root)
 
 
 def new_tool(ctx: Context, name: str) -> int:

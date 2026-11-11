@@ -1,34 +1,41 @@
 # agent-kit
 
-ต้นแบบ agent ด้วย Claude tool use สำหรับเรียกระบบภายใน พร้อม tool registry, approval และ audit log
+ต้นแบบ agent ที่เรียกเครื่องมือของคุณเองได้ และงานอัตโนมัติที่ทำงานจากไฟล์ที่วางในโฟลเดอร์ ใช้ได้ทั้ง Claude และ Ollama ในเครื่อง มี tool registry การขออนุมัติ และ audit log
 
 ## สถาปัตยกรรม
 
 ```
-agent.py           — ReAct loop หลัก (Reason → Tool call → Observation → ...)
-tools/             — tool definitions (function specs + handlers)
-workflows/         — multi-step workflow runners
+llm.py             — ชั้นกลางคุยกับโมเดล (Claude หรือ Ollama) และวงเรียก tool
+agent.py           — agent: ถามโมเดล รัน tool ส่งผลกลับ จนได้คำตอบหรือครบจำนวนรอบ
+tools/             — tool แต่ละตัว (schema + ฟังก์ชัน) ลงทะเบียนอัตโนมัติ
+workflows/         — หลายขั้นต่อกันตามลำดับ โดยทุกขั้นถามโมเดล
+automate.py        — งานอัตโนมัติจากไฟล์ JSON: เฝ้าโฟลเดอร์หรือรันตามรอบ
+jobs/              — ไฟล์งานอัตโนมัติตัวอย่าง
 ```
 
-## Features
+## เลือกโมเดล
 
-- **ReAct loop** — agent วางแผน เรียก tool รับ observation วนซ้ำจนได้คำตอบ
-- **Tool use** — Claude `tool_use` API มาตรฐาน
-- **Workflow runner** — orchestrate งานหลายขั้นตอนแบบ sequential / parallel
-- **Error recovery** — retry และ fallback เมื่อ tool พัง
+| | Claude | Ollama ในเครื่อง |
+|---|---|---|
+| ตั้งค่า | `LLM_PROVIDER=anthropic` (ค่าเริ่มต้น) และ `ANTHROPIC_API_KEY` | `LLM_PROVIDER=ollama` และ `OLLAMA_MODEL` |
+| ต้องติดตั้ง | `pip install -r requirements.txt` | ไม่ต้อง ใช้ไลบรารีมาตรฐานของ Python |
+| ข้อมูล | ข้อความที่ส่งให้โมเดลออกไปยัง Anthropic | อยู่ในเครื่อง |
+| ข้อควรรู้ | คิดค่าใช้จ่ายตามการใช้ | ต้องเป็นโมเดลที่รองรับ tools ถ้าจะให้เรียก tool ดูรายชื่อด้วย `python hope.py stack` |
+
+ตั้งค่าได้ที่เมนู (`python hope.py` ข้อตั้งค่า) หรือในไฟล์ `.env` ที่ root ของ repo โมเดลแบบ thinking ใน Ollama อาจใช้โควตาคำตอบไปกับการคิดจนตอบกลับมาว่าง เมื่อเกิดขึ้นโปรแกรมจะขอใหม่หนึ่งครั้งโดยปิดการคิด ถ้าอยากปิดตั้งแต่แรกเพื่อให้เร็วขึ้น ตั้ง `OLLAMA_THINK=false`
 
 ## เริ่มใช้งาน
 
 ```bash
-pip install -r requirements.txt
-cp ../.env.example ../.env   # ใส่ ANTHROPIC_API_KEY
-python agent.py "What is sqrt(65536)?"
+python agent.py --tools calculate "What is sqrt(65536)?"
 python workflows/workflow_runner.py workflows/templates/research_workflow.json "What is RAG?"
 ```
 
-## นำไปใช้จริง
+หรือจาก root ของ repo: `python hope.py agent "งานที่ต้องการ"`
 
-1. คัดลอก [`tools/_template.py`](tools/_template.py) เป็น `tools/<ชื่อ tool>.py`
+## เพิ่ม tool ของคุณ
+
+1. คัดลอก [`tools/_template.py`](tools/_template.py) เป็น `tools/<ชื่อ tool>.py` (หรือรัน `python hope.py new-tool ชื่อ`)
 2. เปลี่ยน schema และฟังก์ชันให้เรียกระบบของคุณ
 3. ตั้ง `REQUIRES_APPROVAL = True` สำหรับ tool ที่แก้ข้อมูลหรือส่งข้อมูลออก
 4. จำกัด tool ด้วย `--tools` และกำหนด prompt ด้วย `--system-file`
@@ -37,10 +44,68 @@ python workflows/workflow_runner.py workflows/templates/research_workflow.json "
 python agent.py --tools lookup_customer --system-file my_system.md "ตรวจสถานะลูกค้า A001"
 ```
 
-audit log อยู่ที่ `logs/audit.jsonl` เปลี่ยนตำแหน่งได้ด้วย `AGENT_AUDIT_LOG` และ input ของ tool จะถูกบันทึก จึงไม่ควรส่ง secret ผ่าน tool
+audit log อยู่ที่ `logs/audit.jsonl` เปลี่ยนตำแหน่งได้ด้วย `AGENT_AUDIT_LOG` input ของ tool ถูกบันทึก โดยข้อความที่ยาวเกิน 200 ตัวอักษรจะถูกตัด จึงไม่ควรส่ง secret ผ่าน tool
 
-**ไม่เหมาะเมื่อ:** งานต้องรันนานหลายชั่วโมง ต้องกู้สถานะอัตโนมัติ หรือต้องควบคุมสิทธิ์ผู้ใช้หลายคนโดยยังไม่มีระบบ auth
+## workflow
+
+workflow คือไฟล์ JSON ที่มีหลายขั้น แต่ละขั้นถามโมเดลด้วย prompt ของตัวเอง และรับผลของขั้นก่อนหน้าผ่าน `{prev_output}` ขั้นทำงานตามลำดับทีละขั้น ไม่มีการรันขนานกัน ตั้ง `"retries": 2` ในขั้นใดก็ได้เพื่อให้ลองซ้ำเมื่อขั้นนั้นล้ม (รอ 1, 2, 4 วินาที) ถ้าขั้นใดล้ม โปรแกรมจบด้วยรหัส 1
+
+## งานอัตโนมัติ
+
+`automate.py` ทำงานตามไฟล์งาน JSON โดยไม่ต้องมีคนสั่งทุกครั้ง งานที่ไม่มีขั้นถาม AI ใช้ไลบรารีมาตรฐานอย่างเดียว ไม่ต้องติดตั้งอะไรและไม่ต้องมีโมเดล
+
+```bash
+python hope.py auto list                       # งานตัวอย่าง
+python hope.py auto check inbox-todo           # ตรวจไฟล์งาน และบอกว่าต้องวางไฟล์ที่ไหน
+python hope.py auto run inbox-todo --dry-run   # ดูก่อนว่าจะทำอะไร โดยไม่ทำจริง
+python hope.py auto run inbox-todo             # ทำหนึ่งรอบแล้วจบ
+python hope.py auto loop inbox-todo            # ทำซ้ำตามรอบ จนกด Ctrl+C
+```
+
+หรือเปิดเมนู `python hope.py` แล้วเลือกข้อ "งานอัตโนมัติ"
+
+| งานตัวอย่าง | ทำอะไร | ต้องใช้ AI |
+|---|---|---|
+| [`inbox-todo`](jobs/inbox-todo.json) | ดึงบรรทัดที่เป็นงานต้องทำจากไฟล์ที่วางใน `inbox` เขียนเป็นรายการใน `outbox` | ไม่ |
+| [`inbox-summary`](jobs/inbox-summary.json) | ให้ AI สรุปแต่ละไฟล์เป็น 3 ข้อ พร้อมรายการงานที่ดึงตรงจากไฟล์ | ใช่ |
+
+พื้นที่ทำงานของแต่ละงานอยู่ที่ `jobs/work/<ชื่องาน>/` (ไม่ขึ้น Git) เปลี่ยนได้ด้วย `--workdir` ข้างในมี `inbox` สำหรับวางไฟล์, `outbox` สำหรับผลลัพธ์, `done` สำหรับไฟล์ที่ทำเสร็จแล้ว และ `logs/automation.jsonl`
+
+### เขียนไฟล์งานเอง
+
+คัดลอกงานตัวอย่างใน `jobs/` แล้วแก้ ไฟล์งานมีสามส่วน
+
+- `trigger` บอกว่าเริ่มเมื่อไร: `watch` (มีไฟล์ใหม่ในโฟลเดอร์), `interval` (ตามรอบ) หรือ `manual` (สั่งเองพร้อม `--input`)
+- `steps` คือขั้นที่ทำตามลำดับ มีสามชนิด: `tool` เรียก tool ใน `tools/`, `llm` ถามโมเดล, `write` เขียนไฟล์
+- `limits` จำกัดจำนวนไฟล์ต่อรอบ ขนาดไฟล์ ความยาวข้อความ และจำนวนครั้งที่ลองใหม่
+
+ในข้อความใช้ `${ชื่อ}` แทนค่าได้: `${file_name}`, `${file_stem}`, `${file_text}`, `${input}`, `${date}`, `${time}`, `${job}` และผลของขั้นก่อนหน้าด้วยชื่อขั้น เช่น `${summary}` หรือ `${todo.found}` สำหรับช่องในผลของ tool
+
+แต่ละขั้นตั้ง `"on_error": "skip"` พร้อม `"default"` ได้ ถ้าอยากให้งานเดินต่อเมื่อขั้นนั้นล้ม
+
+### กติกาความปลอดภัย
+
+- **ดูก่อนทำ:** `--dry-run` แสดงทุกขั้นโดยไม่เรียกโมเดลและไม่เขียนไฟล์
+- **ไม่ทำซ้ำ:** ไฟล์ที่ทำเสร็จแล้วจะไม่ถูกทำอีก เว้นแต่เนื้อหาเปลี่ยน
+- **ล้มแล้วรู้:** ไฟล์ที่ล้มอยู่ที่เดิม ถูกลองใหม่ในรอบถัดไปไม่เกิน 3 ครั้ง (ลองอีกได้ด้วย `--retry-failed`) และโปรแกรมจบด้วยรหัส 1
+- **เขียนได้เฉพาะในพื้นที่ทำงาน:** ที่อยู่ที่ออกนอกพื้นที่ทำงานถูกปฏิเสธ และไม่เขียนทับไฟล์เดิมถ้าไม่ได้ตั้ง `"overwrite": true`
+- **tool ที่ต้องอนุมัติไม่รันเอง:** ต้องใส่ชื่อใน `allow_tools` ของไฟล์งาน ซึ่งเท่ากับเจ้าของงานอนุมัติไว้ล่วงหน้า
+- **ขั้นถาม AI ไม่ได้ tool** ถ้าไม่ได้ระบุ `tools` ในขั้นนั้น
+- **ไม่รันซ้อน:** งานเดียวกันรันพร้อมกันสองรอบไม่ได้
+- **log ไม่เก็บเนื้อหาเอกสาร:** `automation.jsonl` เก็บชื่อไฟล์ ขั้น ผล และเวลา
+
+ข้อความในไฟล์ที่วางใน `inbox` ถูกส่งเข้า prompt ของขั้น `llm` ไฟล์จากคนนอกอาจมีคำสั่งแฝงถึงโมเดล (prompt injection) งานตัวอย่างบอกโมเดลให้ถือเอกสารเป็นข้อมูล แต่นั่นลดความเสี่ยงได้เท่านั้น ไม่ได้ป้องกันได้ทั้งหมด จึงไม่ควรให้ tool ที่เสี่ยงกับขั้นที่อ่านไฟล์จากคนนอก และควรอ่านสรุปของ AI เทียบกับต้นฉบับก่อนใช้
+
+### ตั้งเวลาให้รันเอง
+
+`auto run` ทำหนึ่งรอบแล้วจบ จึงให้ Task Scheduler (Windows) หรือ cron (macOS, Linux) เรียกตามเวลาได้ ส่วนนี้ยังไม่ได้ทดสอบในคู่มือ ถ้าต้องการให้รันต่อเนื่องโดยเปิดหน้าต่างทิ้งไว้ ใช้ `auto loop` ซึ่งทดสอบแล้ว
+
+## ไม่เหมาะเมื่อ
+
+งานต้องรันนานหลายชั่วโมง ต้องกู้สถานะกลางขั้นอัตโนมัติ มีไฟล์เข้าหลายพันไฟล์ต่อรอบ หรือต้องควบคุมสิทธิ์ผู้ใช้หลายคนโดยยังไม่มีระบบ auth
 
 ## เทคโนโลยี
 
-Python · Anthropic Claude · Tool Use API
+Python · Anthropic Claude หรือ Ollama · Tool use
+
+ภาพรวมของ stack ทั้งหมดอยู่ที่ [แผนที่ stack](../stack/README.md)

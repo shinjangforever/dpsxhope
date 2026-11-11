@@ -51,12 +51,26 @@ def select(names: list[str] | None = None) -> dict[str, Tool]:
     return {name: tools[name] for name in names}
 
 
-def _approved(tool: Tool, args: dict) -> bool:
-    if not tool.requires_approval:
+def _approved(tool: Tool, args: dict, preapproved: frozenset = frozenset()) -> bool:
+    if not tool.requires_approval or tool.name in preapproved:
         return True
     if not sys.stdin.isatty():
         return False
     return input(f"อนุญาตให้ใช้ {tool.name} ด้วย {args}? [y/N] ").strip().lower() == "y"
+
+
+AUDIT_MAX_CHARS = 200
+
+
+def _short(value):
+    """ตัดข้อความยาวใน input ก่อนลง log เพื่อไม่ให้เนื้อหาเอกสารทั้งไฟล์ไปค้างใน audit log"""
+    if isinstance(value, str) and len(value) > AUDIT_MAX_CHARS:
+        return f"{value[:AUDIT_MAX_CHARS]}... [ทั้งหมด {len(value)} ตัวอักษร]"
+    if isinstance(value, dict):
+        return {k: _short(v) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_short(v) for v in value]
+    return value
 
 
 def _audit(name: str, args: dict, result: dict, started: float) -> None:
@@ -64,7 +78,7 @@ def _audit(name: str, args: dict, result: dict, started: float) -> None:
     entry = {
         "time": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "tool": name,
-        "input": args,
+        "input": _short(args),
         "ok": "error" not in result and result.get("ok", True),
         "latency_ms": int((time.perf_counter() - started) * 1000),
     }
@@ -72,13 +86,18 @@ def _audit(name: str, args: dict, result: dict, started: float) -> None:
         log.write(json.dumps(entry, ensure_ascii=False) + "\n")
 
 
-def run(tools: dict[str, Tool], name: str, args: dict) -> dict:
-    """รัน tool โดยตรวจสิทธิ์ จับ error และบันทึก audit log"""
+def run(tools: dict[str, Tool], name: str, args: dict, preapproved: frozenset = frozenset()) -> dict:
+    """รัน tool โดยตรวจสิทธิ์ จับ error และบันทึก audit log
+
+    preapproved คือชื่อ tool ที่เจ้าของงานอนุมัติไว้ล่วงหน้า (ใช้กับงานอัตโนมัติที่ไม่มีคนนั่งกด)
+    """
     started = time.perf_counter()
     tool = tools.get(name)
     if tool is None:
         result = {"error": f"unknown tool: {name}"}
-    elif not _approved(tool, args):
+    elif not isinstance(args, dict):
+        result = {"error": "tool input must be an object"}
+    elif not _approved(tool, args, preapproved):
         result = {"error": "tool call was not approved"}
     else:
         try:

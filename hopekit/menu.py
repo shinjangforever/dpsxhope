@@ -10,10 +10,11 @@ MENU = [
     (K["demo"], "ลองดูก่อน (เดโม 1-2 นาที ด้วยเอกสารตัวอย่าง)"),
     (K["docs"], "ใส่เอกสารของฉัน"),
     (K["ask"], "ถามคำถามจากเอกสาร"),
-    (K["agent"], "ให้ agent ทำงาน (ใช้ Claude)"),
+    (K["agent"], "ให้ agent ทำงาน (Claude หรือ Ollama ในเครื่อง)"),
     (K["settings"], "ตั้งค่า (เปลี่ยน AI, ใส่ key, ปรับค่า)"),
     (K["status"], "ตรวจเครื่อง และดูว่าขั้นต่อไปคืออะไร"),
     (K["tool"], "สร้างเครื่องมือใหม่ให้ agent"),
+    (K["auto"], "งานอัตโนมัติ (วางไฟล์ในโฟลเดอร์ แล้วให้ทำงานให้)"),
     ("0", "ออก"),
 ]
 
@@ -92,6 +93,26 @@ def new_tool_menu(ctx: Context) -> int:
     return commands.new_tool(ctx, name) if name else 2
 
 
+def auto_menu(ctx: Context) -> int:
+    io = ctx.io
+    jobs = commands.auto_jobs(ctx)
+    if not jobs:
+        io.say("ยังไม่มีไฟล์งานใน agent-kit/jobs")
+        return 1
+    job = io.choose("เลือกงาน", jobs, default=jobs[0][0])
+    folder = ctx.root / "agent-kit" / "jobs" / "work" / job
+    commands.auto(ctx, job, action="check")
+    io.say(f"ผลลัพธ์จะอยู่ในโฟลเดอร์ outbox ของ {folder}")
+    action = io.choose("จะทำอะไร", [
+        ("dry", "ดูก่อนว่าจะทำอะไร (ยังไม่ทำจริง)"),
+        ("run", "ทำหนึ่งรอบกับไฟล์ที่วางไว้"),
+        ("back", "กลับเมนูหลัก"),
+    ], default="dry")
+    if action == "back":
+        return 0
+    return commands.auto(ctx, job, dry_run=action == "dry")
+
+
 def run_menu(ctx: Context) -> int:
     io = ctx.io
     actions = {
@@ -103,6 +124,7 @@ def run_menu(ctx: Context) -> int:
         K["settings"]: lambda: settings_menu(ctx),
         K["status"]: lambda: commands.status(ctx),
         K["tool"]: lambda: new_tool_menu(ctx),
+        K["auto"]: lambda: auto_menu(ctx),
     }
     while True:
         suggested, hint = commands.next_step(ctx)

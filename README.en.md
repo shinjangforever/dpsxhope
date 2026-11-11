@@ -60,7 +60,8 @@ AI connected to other fields. Each field has a map, lessons, and a runnable demo
 | Build | Blueprint | Adapt it by | Requires |
 |---|---|---|---|
 | **Document Q&A** | [`rag-pipeline`](rag-pipeline/) | Adding `.txt`, `.md`, and `.pdf` files plus your test cases | Ollama or an API key |
-| **Internal assistant** | [`agent-kit`](agent-kit/) | Adding tool files and a system prompt | API key |
+| **Internal assistant** | [`agent-kit`](agent-kit/) | Adding tool files and a system prompt | Ollama or API key |
+| **Work that starts when a file arrives** | [automation](agent-kit/README.md#งานอัตโนมัติ) (Thai docs) | Copying an example job file and editing its steps | Python (AI steps need Ollama or an API key) |
 | **AI quality checks** | [`llm-eval`](llm-eval/) | Using your test cases and CI thresholds | Ollama or an API key |
 | **AI service** | [`ai-api`](ai-api/) | Setting auth, CORS, prompts, and deployment | Node.js, API key |
 
