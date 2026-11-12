@@ -1,0 +1,28 @@
+{
+  "name": "inbox-todo",
+  "description": "เฝ้าโฟลเดอร์ inbox แล้วดึงบรรทัดที่เป็นงานต้องทำออกมาเป็นรายการ (ไม่ใช้ AI)",
+  "trigger": {
+    "type": "watch",
+    "folder": "inbox",
+    "patterns": ["*.txt", "*.md"],
+    "every_seconds": 30,
+    "after": "move"
+  },
+  "steps": [
+    {
+      "name": "todo",
+      "type": "tool",
+      "tool": "find_lines",
+      "args": {
+        "text": "${file_text}",
+        "keywords": ["todo", "ต้องทำ", "ต้องส่ง", "นัด", "ภายในวันที่", "deadline"]
+      }
+    },
+    {
+      "name": "save",
+      "type": "write",
+      "path": "outbox/${file_stem}.todo.md",
+      "content": "# งานที่ต้องทำจาก ${file_name}\n\nพบ ${todo.found} บรรทัด จากทั้งหมด ${todo.total_lines} บรรทัด (สร้างเมื่อ ${date})\n\n${todo.as_list}\n"
+    }
+  ]
+}

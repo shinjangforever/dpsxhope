@@ -1,0 +1,35 @@
+name: Dependency audit
+
+# ตรวจช่องโหว่ที่รู้แล้วในไลบรารี แยกจาก CI หลัก เพื่อไม่ให้ช่องโหว่ใหม่ของไลบรารีภายนอกไปบล็อก pull request ที่ไม่เกี่ยว
+on:
+  schedule:
+    - cron: "0 2 * * 1"   # ทุกวันจันทร์ 02:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # ติดตั้งชุดเบา (agent และ eval) ไม่รวมไลบรารีค้นหาที่มีขนาดใหญ่
+      - name: Install Python dependencies and pip-audit
+        run: python -m pip install -r agent-kit/requirements.txt -r llm-eval/requirements.txt pip-audit
+
+      - name: Install ai-api dependencies
+        run: npm ci --prefix ai-api
+
+      - name: Audit
+        run: python hope.py audit

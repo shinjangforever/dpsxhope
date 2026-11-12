@@ -331,7 +331,7 @@ class SetupTest(Base):
     def test_existing_key_is_reused_and_not_asked_again(self):
         os.environ["ANTHROPIC_API_KEY"] = "sk-existing"
         ctx = self.ctx(answers=["y"])
-        self.assertEqual(commands.setup(ctx, profile="agent", no_install=True), 0)
+        self.assertEqual(commands.setup(ctx, profile="agent", engine_name="claude", no_install=True), 0)
         self.assertIn("ใช้ค่าเดิม", self.io.text)
         self.assertFalse(self.env_value("ANTHROPIC_API_KEY"))   # ไม่เขียนค่าจาก environment ลงไฟล์ (ในไฟล์ยังว่าง)
 
@@ -362,8 +362,16 @@ class SetupTest(Base):
         self.assertEqual(self.run_.calls, [])
         self.assertFalse((self.root / ".env").exists())
 
+    def test_agent_profile_can_use_ollama(self):
+        ctx = self.ctx(models=["a:latest"])
+        code = commands.setup(ctx, profile="agent", engine_name="ollama", ollama_model="a:latest",
+                              no_install=True, yes=True)
+        self.assertEqual(code, 0, self.io.text)
+        self.assertEqual(self.env_value("LLM_PROVIDER"), "ollama")
+        self.assertEqual(self.env_value("OLLAMA_MODEL"), "a:latest")
+
     def test_invalid_combinations_are_refused(self):
-        self.assertEqual(commands.setup(self.ctx(), profile="agent", engine_name="ollama", yes=True), 2)
+        self.assertEqual(commands.setup(self.ctx(), profile="agent", engine_name="gemini", yes=True), 2)
         self.assertEqual(commands.setup(self.ctx(), profile="nope", yes=True), 2)
         self.assertEqual(commands.setup(self.ctx(), profile="rag", engine_name="gemini", yes=True), 2)
 

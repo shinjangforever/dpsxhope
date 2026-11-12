@@ -25,5 +25,6 @@ my-docs/
 rag-pipeline/data/
 rag-pipeline/data-demo/
 logs/
+agent-kit/jobs/work/
 *.index
 chroma_db/

@@ -50,6 +50,7 @@ class PythonBlueprintsWithMock(unittest.TestCase):
             **os.environ,
             "ANTHROPIC_API_KEY": "test-key",
             "ANTHROPIC_BASE_URL": cls.mock.url,
+            "LLM_PROVIDER": "anthropic",        # ไม่ให้ค่าในเครื่องของผู้ทดสอบพาไปเรียก Ollama จริง
             "AGENT_AUDIT_LOG": str(cls.audit),
             "PYTHONIOENCODING": "utf-8",
         }

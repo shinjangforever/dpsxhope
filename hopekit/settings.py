@@ -22,7 +22,7 @@ class Setting:
 
 
 SETTINGS = [
-    Setting("LLM_PROVIDER", "AI ที่ใช้ตอบคำถามจากเอกสาร", "choice", "anthropic",
+    Setting("LLM_PROVIDER", "AI ที่ใช้ตอบ (ถามเอกสาร agent และงานอัตโนมัติ)", "choice", "anthropic",
             choices=("anthropic", "ollama"), note="anthropic = Claude (ต้องมี key), ollama = โมเดลในเครื่อง"),
     Setting("OLLAMA_MODEL", "ชื่อโมเดลใน Ollama", "text", "llama3.2"),
     Setting("CLAUDE_MODEL", "ชื่อโมเดล Claude", "text", "claude-haiku-5-5"),
@@ -41,6 +41,7 @@ SETTINGS = [
     Setting("RAG_USE_RERANK", "จัดอันดับซ้ำด้วยโมเดลเพิ่ม", "bool", "false", group=ADVANCED,
             note="ดาวน์โหลดโมเดลเพิ่มตอนใช้ครั้งแรก และยังไม่ได้วัดว่าให้ผลดีขึ้นกับเอกสารไทย"),
     Setting("RAG_MAX_TOKENS", "ความยาวคำตอบสูงสุด (token)", "int", "1024", lo=64, hi=8192, group=ADVANCED),
+    Setting("AUTO_WEBHOOK_TOKEN", "งานอัตโนมัติ: รหัสของช่องรับไฟล์ทาง HTTP (auto serve)", "secret", "", group=ADVANCED),
     Setting("OLLAMA_URL", "ที่อยู่ Ollama", "text", "http://localhost:11434", group=ADVANCED),
     Setting("HOST", "ai-api: ที่อยู่ที่เปิดรับ", "text", "127.0.0.1", group=ADVANCED,
             note="เปลี่ยนเป็น 0.0.0.0 ต้องตั้ง APP_API_KEY ด้วย"),
