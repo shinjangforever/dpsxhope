@@ -13,6 +13,7 @@
     python hope.py auto list         งานอัตโนมัติ: เฝ้าโฟลเดอร์แล้วทำงานให้ (auto run ชื่องาน --dry-run)
     python hope.py stack             ดูว่าเครื่องนี้มีภาษาและเครื่องมืออะไร ทำอะไรได้แล้วบ้าง
     python hope.py stack map         แผนที่ stack: สาย × ระดับ (ต่อด้วย tools, path สาย, show ชื่อ)
+    python hope.py stack learn สาย   บทเรียนเป็นขั้นของสายนั้น ไล่ทีละระดับ
     python hope.py config            ดู/แก้ค่า เช่น config set RAG_TOP_K 6
     python hope.py new-tool ชื่อ     สร้างเครื่องมือใหม่ให้ agent จากแม่แบบ
     python hope.py status            ตรวจเครื่องและบอกขั้นต่อไป
@@ -22,6 +23,7 @@
     python hope.py test [ชุด]        ชุด: unit | mock | all (ค่าเริ่มต้น unit)
     python hope.py check-links       ตรวจลิงก์และหัวข้อที่ลิงก์ไปถึงในไฟล์ .md
     python hope.py check             check-links + test unit + ตรวจ catalog (ใช้เป็นด่านก่อน push)
+    python hope.py audit             ตรวจช่องโหว่ที่รู้แล้วในไลบรารี (npm audit และ pip-audit ต้องต่ออินเทอร์เน็ต)
 
 ทุกคำสั่งไม่ต้องใช้ API key และไม่ต้องมี Docker ยกเว้นตอนใช้ AI ตอบจริง
 """
@@ -38,7 +40,7 @@ from urllib.parse import unquote
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
 
-from hopekit import commands, menu, runner, stack, stackmap  # noqa: E402
+from hopekit import audit, commands, menu, runner, stack, stackmap  # noqa: E402
 
 CATALOG = ROOT / "catalog.json"
 SKIP_DIRS = {".git", "node_modules", "venv", ".venv", "__pycache__", "dist", "my-docs"}
@@ -46,7 +48,7 @@ SKIP_DIRS = {".git", "node_modules", "venv", ".venv", "__pycache__", "dist", "my
 # ชุดทดสอบ: unit ไม่ต้องติดตั้งอะไรเพิ่ม (ถ้าไม่มี rank_bm25 จะข้ามข้อที่ต้องใช้)
 SUITES = {
     "unit": ["test_blueprints.py", "test_thai_search.py", "test_catalog.py", "test_easy_cli.py", "test_robotics_demo.py",
-             "test_robokit.py", "test_agent_llm.py", "test_automation.py", "test_stack.py", "test_stackmap.py"],
+             "test_robokit.py", "test_agent_llm.py", "test_automation.py", "test_stack.py", "test_stackmap.py", "test_examples.py"],
     "mock": ["test_mock_e2e.py"],
 }
 SUITES["all"] = SUITES["unit"] + SUITES["mock"]
@@ -183,7 +185,7 @@ def catalog_problems() -> list[str]:
 def cmd_check(_args) -> int:
     code = 0
     print("== catalog ==")
-    problems = catalog_problems() + [f"stack.json: {p}" for p in stackmap.problems(stackmap.load(ROOT).data, ROOT)]
+    problems = catalog_problems() + [f"stack: {p}" for p in stackmap.problems(stackmap.load(ROOT).data, ROOT) + stackmap.lesson_problems(stackmap.load(ROOT))]
     for p in problems:
         print(f"  ปัญหา: {p}")
     print(f"  {'ผ่าน' if not problems else 'ไม่ผ่าน'}")
@@ -302,9 +304,10 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_test)
     sub.add_parser("check-links", help="ตรวจลิงก์ในเอกสาร").set_defaults(func=cmd_check_links)
     sub.add_parser("check", help="ด่านตรวจก่อน push").set_defaults(func=cmd_check)
+    sub.add_parser("audit", help="ตรวจช่องโหว่ที่รู้แล้วในไลบรารี").set_defaults(func=lambda _a: audit.report(ROOT))
     p = sub.add_parser("stack", help="ดู stack ของเครื่องนี้ และสิ่งที่ทำได้แล้ว")
-    p.add_argument("view", nargs="?", default="machine", choices=["machine", "map", "tools", "path", "show", "docs"],
-                   help="machine (ค่าเริ่มต้น) เครื่องนี้ | map สาย×ระดับ | tools รายการ | path สาย | show ชื่อ | docs สร้างเอกสาร")
+    p.add_argument("view", nargs="?", default="machine", choices=["machine", "map", "tools", "path", "learn", "show", "docs"],
+                   help="machine (ค่าเริ่มต้น) เครื่องนี้ | map สาย×ระดับ | tools รายการ | path สาย | learn สาย (บทเรียนเป็นขั้น) | show ชื่อ | docs สร้างเอกสาร")
     p.add_argument("name", nargs="?", help="ชื่อสาย (path) หรือชื่อเครื่องมือ (show)")
     p.add_argument("--group", help="กรองตามกลุ่ม (tools)")
     p.add_argument("--track", help="กรองตามสาย (tools)")
@@ -324,17 +327,19 @@ def cmd_stack(args) -> int:
         return stackmap.write_docs(ROOT)
     s = stackmap.load(ROOT)
     for kind, value, known in (("กลุ่ม", args.group, s.groups), ("สาย", args.track, s.tracks),
-                               ("สาย", args.name if args.view == "path" else None, s.tracks)):
+                               ("สาย", args.name if args.view in ("path", "learn") else None, s.tracks)):
         if value is not None and value not in known:
             print(f"ไม่มี{kind} {value} เลือกได้: {', '.join(known)}")
             return 2
     if args.view == "map":
         return stackmap.show_map(s, print)
+    if args.view == "learn" and args.name:
+        return stackmap.show_learn(s, print, args.name, args.level)
     have = stack.collect(ROOT)["tools"]
     if args.view == "tools":
         return stackmap.show_tools(s, print, args.group, args.track, args.level, have)
     if not args.name:
-        print("ระบุชื่อสาย: " + ", ".join(s.tracks) if args.view == "path" else "ระบุชื่อเครื่องมือ เช่น: python hope.py stack show ollama")
+        print("ระบุชื่อสาย: " + ", ".join(s.tracks) if args.view in ("path", "learn") else "ระบุชื่อเครื่องมือ เช่น: python hope.py stack show ollama")
         return 2
     if args.view == "path":
         return stackmap.show_path(s, print, args.name, args.level, have)

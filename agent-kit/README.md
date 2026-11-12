@@ -11,6 +11,8 @@ tools/             — tool แต่ละตัว (schema + ฟังก์�
 workflows/         — หลายขั้นต่อกันตามลำดับ โดยทุกขั้นถามโมเดล
 automate.py        — งานอัตโนมัติจากไฟล์ JSON: เฝ้าโฟลเดอร์หรือรันตามรอบ
 jobs/              — ไฟล์งานอัตโนมัติตัวอย่าง
+autotools.py       — ส่วนเสริมของงานอัตโนมัติ: รายงานจาก log (SQLite) คำสั่งตั้งเวลา ช่องรับไฟล์ทาง HTTP
+mcp_server.py      — เปิด tool ให้แอป AI อื่นใช้ผ่าน Model Context Protocol
 ```
 
 ## เลือกโมเดล
@@ -98,7 +100,47 @@ python hope.py auto loop inbox-todo            # ทำซ้ำตามรอ�
 
 ### ตั้งเวลาให้รันเอง
 
-`auto run` ทำหนึ่งรอบแล้วจบ จึงให้ Task Scheduler (Windows) หรือ cron (macOS, Linux) เรียกตามเวลาได้ ส่วนนี้ยังไม่ได้ทดสอบในคู่มือ ถ้าต้องการให้รันต่อเนื่องโดยเปิดหน้าต่างทิ้งไว้ ใช้ `auto loop` ซึ่งทดสอบแล้ว
+`auto run` ทำหนึ่งรอบแล้วจบ จึงให้ Task Scheduler (Windows) หรือ cron (macOS, Linux) เรียกตามเวลาได้ คำสั่งนี้สร้างคำสั่งตั้งเวลา ตรวจ และยกเลิก ให้คัดลอกไปรันเอง โปรแกรมไม่ได้ตั้งเวลาให้
+
+```bash
+python hope.py auto schedule inbox-todo --every-minutes 15
+```
+
+คำสั่งที่ได้ยังไม่ได้ลองตั้งเวลาจริงในคู่มือ ตรวจผลครั้งแรกด้วยตัวเอง ถ้าต้องการให้รันต่อเนื่องโดยเปิดหน้าต่างทิ้งไว้ ใช้ `auto loop` ซึ่งทดสอบแล้ว
+
+### ดูผลและวัดเวลา
+
+```bash
+python hope.py auto report inbox-todo                        # สำเร็จ ล้ม เวลาต่อขั้น ข้อผิดพลาดที่พบบ่อย
+python hope.py auto report inbox-todo --minutes-by-hand 3    # เทียบกับเวลาที่คุณใช้ถ้าทำมือ
+python hope.py auto report inbox-todo --db auto-log.db       # เก็บเป็น SQLite ไว้ถามต่อด้วย SQL
+```
+
+รายงานอ่าน `logs/automation.jsonl` ลงตาราง SQLite แล้วสรุปด้วย SQL การเทียบเวลาใช้ตัวเลขที่คุณใส่เอง และยังไม่รวมเวลาที่ใช้ตรวจผลกับดูแลงาน
+
+### รับงานจากโปรแกรมอื่น
+
+`auto serve` เปิดช่องรับไฟล์ทาง HTTP เพื่อให้โปรแกรมอื่น เช่น n8n ส่งข้อความเข้ามาเป็นไฟล์ใน `inbox` แล้วให้ `auto loop` ที่เปิดไว้อีกหน้าต่างทำงานต่อ
+
+```bash
+python hope.py config set AUTO_WEBHOOK_TOKEN      # ข้อความสุ่มยาวอย่างน้อย 16 ตัวอักษร
+python hope.py auto serve inbox-todo --port 8765
+```
+
+ส่งด้วย `POST http://127.0.0.1:8765/inbox` พร้อม header `Authorization: Bearer <token>` และ JSON `{"name": "a.txt", "text": "..."}` ช่องนี้รับเฉพาะจากเครื่องนี้ (`127.0.0.1`) ชื่อไฟล์ห้ามมีโฟลเดอร์ ต้องตรงกับ `patterns` ของงาน ไม่เขียนทับไฟล์ที่รออยู่ และจำกัดขนาดตาม `limits.max_file_kb` ห้ามเปิดออกนอกเครื่องตรงๆ เพราะไม่มี TLS ช่องนี้ทดสอบด้วยชุดทดสอบของคู่มือ ยังไม่ได้ลองกับ n8n จริง
+
+## เปิด tool ให้แอป AI อื่นใช้ (MCP)
+
+`mcp_server.py` เปิด tool ในโฟลเดอร์ `tools/` ผ่าน Model Context Protocol แบบ stdio แอปที่เป็น MCP client จะเป็นผู้เปิดโปรแกรมนี้เอง โดยตั้งคำสั่งเป็น
+
+```bash
+python agent-kit/mcp_server.py --tools calculate,find_lines
+```
+
+- tool ที่ตั้ง `REQUIRES_APPROVAL` ไม่ถูกเปิดผ่านช่องทางนี้ เพราะไม่มีคนนั่งกดอนุมัติที่ฝั่ง server
+- ทุกการเรียกถูกบันทึกใน audit log เหมือนการเรียกจาก agent
+- ทำตามสเปกรุ่น 2025-11-25 และ 2025-06-18 (ตรวจกับเอกสารของสเปกเมื่อ 2026-11-12) รองรับ `initialize`, `ping`, `tools/list`, `tools/call`
+- ยังไม่รองรับสเปกรุ่น 2026-07-28 ซึ่งเลิกใช้ขั้น `initialize` และยังไม่ได้ลองต่อกับแอป AI จริง ทดสอบด้วยชุดทดสอบของคู่มือเท่านั้น
 
 ## ไม่เหมาะเมื่อ
 

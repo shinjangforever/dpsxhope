@@ -38,6 +38,9 @@
 - แผนที่ `stack/README.md` v0.2: ภาษาและเครื่องมือ, AI agent, งานอัตโนมัติ, Full stack, Cybersecurity เชิงป้องกัน, คณิตศาสตร์ และปรัชญา
 - คลังข้อมูล `stack/stack.json`: เครื่องมือและภาษา 49 ชิ้นพร้อมคำอธิบาย จัดเป็น 9 กลุ่ม แยกเป็น 8 สายและ 4 ระดับ กับกลุ่มความรู้ของแต่ละสายในแต่ละระดับ หน้า `stack/TOOLS.md` และ `stack/PATHS.md` สร้างจากคลังนี้
 - มุมมองใหม่ของ `python hope.py stack`: `map` (สาย × ระดับ), `tools` (กรองด้วย `--group` `--track` `--level`), `path สาย`, `show ชื่อ` และ `docs`
+- ตัวอย่างในคู่มือของเครื่องมือทุกชิ้นในแผนที่ stack: `auto report` (SQLite), `auto schedule` (Task Scheduler และ cron), `auto serve` (ช่องรับไฟล์ทาง HTTP สำหรับ n8n หรือโปรแกรมอื่น), `agent-kit/mcp_server.py` (MCP แบบ stdio ตามสเปกรุ่น 2025-11-25), หน้าเว็บตัวอย่าง `stack/examples/web/` (HTML, CSS, JavaScript ล้วน ต่อกับ ai-api), `languages/cpp/stop_distance.cpp` และ `python hope.py audit` (npm audit กับ pip-audit) พร้อม workflow ตรวจประจำสัปดาห์
+- บทเรียนเป็นขั้นครบทุกสายทุกระดับ (32 ช่อง) ใน `stack/lessons/` และ `python hope.py stack learn สาย` แต่ละระดับมีขั้นที่ต้องทำ สิ่งที่ควรเห็น และเกณฑ์ว่าผ่าน คำสั่งที่ไม่ต้องใช้โมเดลถูกรันโดยชุดทดสอบ
+- `stack/THREAT-MODEL.md`: สิ่งที่ต้องปกป้อง เส้นแบ่งความไว้ใจ ตารางภัย 12 ข้อพร้อมสิ่งที่กันไว้และช่องว่าง ลำดับสิ่งที่ควรแก้ และแผนเมื่อเกิดเหตุ
 
 ### Changed
 

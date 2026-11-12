@@ -6,6 +6,9 @@ automate.py — งานอัตโนมัติจากไฟล์ JSON: 
   python automate.py run inbox-todo --dry-run      ดูก่อนว่าจะทำอะไร โดยไม่ทำจริง
   python automate.py run inbox-todo                ทำหนึ่งรอบแล้วจบ (เหมาะกับ Task Scheduler หรือ cron)
   python automate.py loop inbox-todo               ทำซ้ำทุก every_seconds จนกด Ctrl+C
+  python automate.py report inbox-todo             สรุปจาก log: สำเร็จ ล้ม เวลาต่อขั้น (ใช้ SQLite)
+  python automate.py schedule inbox-todo --every-minutes 15   แสดงคำสั่งตั้งเวลาของระบบปฏิบัติการ
+  python automate.py serve inbox-todo              เปิดช่องรับไฟล์ทาง HTTP ในเครื่อง (ให้ n8n หรือโปรแกรมอื่นส่งเข้ามา)
 
 ขั้นมี 3 ชนิด: tool (เรียก tool ในโฟลเดอร์ tools/), llm (ถามโมเดล), write (เขียนไฟล์)
 ขั้นชนิด tool และ write ใช้ไลบรารีมาตรฐานอย่างเดียว ไม่ต้องติดตั้งอะไรและไม่ต้องมี AI
@@ -26,6 +29,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
+import autotools  # noqa: E402
 import llm  # noqa: E402
 import tools as registry  # noqa: E402
 
@@ -464,6 +468,24 @@ def run_loop(job: dict, workdir: Path, max_passes: int | None = None, sleep=time
     return failures
 
 
+def serve_inbox(job: dict, workdir: Path, port: int) -> int:
+    trigger = job["trigger"]
+    if trigger["type"] != "watch":
+        raise JobError("serve ใช้ได้กับงานแบบ watch เท่านั้น (ต้องมีโฟลเดอร์รับไฟล์)")
+    server = autotools.make_server(inside(workdir, trigger["folder"]), trigger.get("patterns", ["*.txt", "*.md"]),
+                                   os.getenv(autotools.TOKEN_ENV, ""), limits_of(job)["max_file_kb"] * 1024, port)
+    print(f"รับไฟล์ที่ http://127.0.0.1:{server.server_address[1]}/inbox (เฉพาะจากเครื่องนี้) กด Ctrl+C เพื่อหยุด")
+    print("ส่งด้วย POST พร้อม header Authorization: Bearer <ค่าใน AUTO_WEBHOOK_TOKEN> และ JSON {\"name\": \"a.txt\", \"text\": \"...\"}")
+    print("ช่องนี้แค่รับไฟล์ลงโฟลเดอร์ ต้องเปิด auto loop อีกหน้าต่างหนึ่งเพื่อให้งานทำ")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nหยุดแล้ว")
+    finally:
+        server.server_close()
+    return 0
+
+
 # ---------- CLI ----------
 
 def cmd_list() -> int:
@@ -491,11 +513,20 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description="งานอัตโนมัติจากไฟล์ JSON")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("list", help="งานตัวอย่างใน jobs/")
-    for name, text in (("check", "ตรวจไฟล์งาน"), ("run", "ทำหนึ่งรอบ"), ("loop", "ทำซ้ำตามรอบ")):
+    for name, text in (("check", "ตรวจไฟล์งาน"), ("run", "ทำหนึ่งรอบ"), ("loop", "ทำซ้ำตามรอบ"),
+                       ("report", "สรุปจาก log"), ("schedule", "แสดงคำสั่งตั้งเวลา"), ("serve", "เปิดช่องรับไฟล์ทาง HTTP")):
         p = sub.add_parser(name, help=text)
         p.add_argument("job", help="ชื่องานใน jobs/ หรือที่อยู่ไฟล์ .json")
         p.add_argument("--workdir", type=Path, help="พื้นที่ทำงาน (ค่าเริ่มต้น: jobs/work/<ชื่องาน>)")
-        if name != "check":
+        if name == "report":
+            p.add_argument("--minutes-by-hand", type=float, help="ถ้าทำมือ ใช้กี่นาทีต่อรายการ (ตัวเลขของคุณเอง)")
+            p.add_argument("--db", type=Path, help="บันทึกเป็นไฟล์ SQLite ไว้ถามต่อด้วย SQL")
+            p.add_argument("--json", action="store_true")
+        if name == "schedule":
+            p.add_argument("--every-minutes", type=int, default=15, help="1-59 หรือชั่วโมงเต็ม เช่น 60, 120")
+        if name == "serve":
+            p.add_argument("--port", type=int, default=8765)
+        if name in ("run", "loop"):
             p.add_argument("--input", default="", help="ข้อความที่ส่งเข้า ${input}")
             p.add_argument("--retry-failed", action="store_true", help="ลองไฟล์ที่ล้มครบจำนวนครั้งแล้วอีกรอบ")
         if name == "run":
@@ -517,11 +548,17 @@ def main(argv=None) -> int:
             if trigger["type"] == "watch":
                 print(f"วางไฟล์ที่: {workdir / trigger['folder']}")
             return 0
+        if args.command == "report":
+            return autotools.report(workdir, minutes_by_hand=args.minutes_by_hand, db_path=args.db, as_json=args.json)
+        if args.command == "schedule":
+            return autotools.show_schedule(path.stem, HERE.parent / "hope.py", args.every_minutes)
+        if args.command == "serve":
+            return serve_inbox(job, workdir, args.port)
         if args.command == "run":
             return 1 if run_pass(job, workdir, args.dry_run, args.input, args.retry_failed) else 0
         return 1 if run_loop(job, workdir, args.max_passes, user_input=args.input,
                              retry_failed=args.retry_failed) else 0
-    except JobError as exc:
+    except (JobError, autotools.ToolError) as exc:
         print(exc, file=sys.stderr)
         return 2
 

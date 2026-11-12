@@ -65,10 +65,12 @@ class DataTest(unittest.TestCase):
 
 class DocsTest(unittest.TestCase):
     def test_generated_docs_are_up_to_date(self):
-        for name, render in stackmap.DOCS.items():
+        rendered = stackmap.docs(S)
+        self.assertEqual(len(rendered), 2 + len(S.tracks))
+        for name, text in rendered.items():
             with self.subTest(doc=name):
                 on_disk = (ROOT / name).read_text(encoding="utf-8")
-                self.assertEqual(on_disk, render(S), f"{name} ไม่ตรงกับ stack.json รัน: python hope.py stack docs")
+                self.assertEqual(on_disk, text, f"{name} ไม่ตรงกับข้อมูล รัน: python hope.py stack docs")
 
     def test_docs_cover_everything(self):
         tools_md = stackmap.render_tools_md(S)
@@ -80,6 +82,8 @@ class DocsTest(unittest.TestCase):
         for track in S.tracks.values():
             self.assertIn(f"## {track['name']}", paths_md)
         self.assertEqual(paths_md.count("ยังไม่มีเนื้อหา |"), sum(not k["where"] for k in S.knowledge))
+        self.assertEqual([t["id"] for t in S.tools if not t["in_repo"]], [])       # ทุกชิ้นมีตัวอย่างในคู่มือแล้ว
+        self.assertEqual([k for k in S.knowledge if not k["where"]], [])          # ทุกช่องมีเนื้อหาแล้ว
 
     def test_readme_names_every_group_track_and_level(self):
         readme = (ROOT / "stack" / "README.md").read_text(encoding="utf-8")
@@ -115,7 +119,7 @@ class ViewsTest(unittest.TestCase):
     def test_show_one_tool_and_suggest_close_names(self):
         code, text = capture(stackmap.show_tool, "OLLAMA", have={"ollama": None})
         self.assertEqual(code, 0)
-        for expected in ("กลุ่ม", "ระดับ", "สาย", "คืออะไร", "ใช้เมื่อ", "ยังไม่มี"):
+        for expected in ("กลุ่ม", "ระดับ", "สาย", "คืออะไร", "ใช้เมื่อ", "ในคู่มือ"):
             self.assertIn(expected, text)
         code, text = capture(stackmap.show_tool, "docker")
         self.assertEqual(code, 0)
@@ -129,7 +133,6 @@ class ViewsTest(unittest.TestCase):
         self.assertEqual(code, 0)
         for level in S.levels.values():
             self.assertIn(f"ระดับ {level['id']} {level['name']}", text)
-        self.assertIn("ยังไม่มีเนื้อหาในคู่มือนี้", text)                 # ระดับ 4 ของสายนี้ยังว่าง และบอกตรงๆ
         _code, only = capture(stackmap.show_path, "automation", 2)
         self.assertIn("ระดับ 2", only)
         self.assertNotIn("ระดับ 3", only)

@@ -8,6 +8,7 @@ Code samples และ patterns ในหลายภาษา — แสดง 
 |------|---------|---------|
 | Go | `go/llm_client.go` | LLM API client (ตรวจ `go vet` และ build ผ่าน ยังไม่ได้รันกับ API จริง) |
 | Rust | `rust/tokenizer.rs` | ประมาณจำนวน token และตัด chunk ใช้ std อย่างเดียว คอมไพล์และรันได้ |
+| C++ | `cpp/stop_distance.cpp` | ระยะหยุดของชั้นป้องกัน สูตรเดียวกับ `python hope.py robot stop` (ชุดทดสอบคอมไพล์และเทียบผลกับ robokit เมื่อเครื่องมี g++ หรือ clang++ ยังไม่ได้คอมไพล์บนเครื่องผู้ดูแล) |
 | TypeScript | `typescript/client.ts` | LLM client แบบมี type และ structured output (`tsc --strict` ผ่าน รันกับเซิร์ฟเวอร์จำลองได้) |
 | Bash | `bash/model_manager.sh` | จัดการโมเดลในเครื่อง: list, pull, bench, health, test |
 | SQL | `sql/ai_logs_schema.sql` | schema บันทึก request และติดตามระบบ AI (PostgreSQL ตรวจ syntax แล้ว ไม่ใช่ SQLite หรือ MySQL) |
@@ -24,4 +25,4 @@ Code samples และ patterns ในหลายภาษา — แสดง 
 
 ## เทคโนโลยี
 
-Go · Rust · TypeScript · Bash · SQL · YAML
+Go · Rust · C++ · TypeScript · Bash · SQL · YAML

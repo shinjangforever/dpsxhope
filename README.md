@@ -87,7 +87,7 @@ AI ที่เชื่อมกับสาขาอื่น แต่ละ�
 | **ตรวจคุณภาพ AI** | [`llm-eval`](llm-eval/) | ใช้ชุดทดสอบของคุณและตั้งเกณฑ์ใน CI | Ollama หรือ API key |
 | **บริการ API** | [`ai-api`](ai-api/) | ตั้ง auth, CORS, prompt และ deploy | Node.js, API key |
 
-ไม่แน่ใจว่าเครื่องของคุณทำอะไรได้แล้ว รัน `python hope.py stack` และดู [แผนที่ stack](stack/README.md) ซึ่งจัดภาษาและเครื่องมือเป็นกลุ่ม แยกเป็นสาย (AI agent, งานอัตโนมัติ, Full stack, Cybersecurity, คณิตศาสตร์, ปรัชญา และอื่นๆ) กับระดับ 1 ถึง 4 พร้อมคำอธิบายของ[เครื่องมือทุกชิ้น](stack/TOOLS.md)และ[ความรู้ของแต่ละระดับ](stack/PATHS.md)
+ไม่แน่ใจว่าเครื่องของคุณทำอะไรได้แล้ว รัน `python hope.py stack` และดู [แผนที่ stack](stack/README.md) ซึ่งจัดภาษาและเครื่องมือเป็นกลุ่ม แยกเป็นสาย (AI agent, งานอัตโนมัติ, Full stack, Cybersecurity, คณิตศาสตร์, ปรัชญา และอื่นๆ) กับระดับ 1 ถึง 4 พร้อมคำอธิบายของ[เครื่องมือทุกชิ้น](stack/TOOLS.md) [ความรู้ของแต่ละระดับ](stack/PATHS.md) และบทเรียนเป็นขั้นของแต่ละสาย (`python hope.py stack learn สาย`)
 
 ก่อนเปิดให้ผู้อื่นใช้ อ่าน [คู่มือนำไปใช้จริง](BLUEPRINTS.md) ซึ่งมีจุดที่ต้องเปลี่ยน รายการตรวจ และแนวทางขยายระบบ
 
@@ -103,6 +103,8 @@ python hope.py config set RAG_TOP_K 6
 python hope.py new-tool check_stock
 python hope.py auto run inbox-todo --dry-run
 python hope.py stack
+python hope.py stack learn automation --level 1
+python hope.py audit
 ```
 
 ใส่ API key ด้วย `python hope.py config set ANTHROPIC_API_KEY` โดยไม่ต้องพิมพ์ค่าต่อท้าย ระบบจะถามแบบไม่แสดงตัวอักษร key จึงไม่ค้างในประวัติคำสั่ง ดูรายการค่าทั้งหมดด้วย `python hope.py config --all`

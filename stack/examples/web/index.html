@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="th">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ถาม AI ผ่าน ai-api</title>
+  <style>
+    /* สีทั้งหมดอยู่ที่นี่ที่เดียว เปลี่ยนธีมได้โดยแก้ตัวแปร */
+    :root {
+      --bg: #f6f4ee; --panel: #ffffff; --text: #1d1b16; --muted: #6a6558;
+      --line: #d9d4c5; --accent: #8a6a12; --accent-text: #ffffff; --error: #a3261c; --ok: #2f6b3a;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #14130f; --panel: #1e1c17; --text: #efe9d8; --muted: #a39c88;
+        --line: #3a372d; --accent: #d4a82a; --accent-text: #14130f; --error: #ff8a7d; --ok: #8fd09b;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; padding: 24px 16px 48px; background: var(--bg); color: var(--text);
+      font: 16px/1.6 "Leelawadee UI", "Sarabun", "Noto Sans Thai", system-ui, sans-serif;
+    }
+    main { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 1.5rem; margin: 0 0 4px; }
+    .lead { color: var(--muted); margin: 0 0 20px; }
+    section { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 16px; margin-bottom: 16px; }
+    label { display: block; font-weight: 600; margin-bottom: 4px; }
+    .hint { color: var(--muted); font-size: 0.875rem; margin: 4px 0 12px; }
+    input, textarea {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 8px;
+      background: var(--bg); color: var(--text); font: inherit;
+    }
+    textarea { min-height: 110px; resize: vertical; }
+    input:focus-visible, textarea:focus-visible, button:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    @media (max-width: 560px) { .row { grid-template-columns: 1fr; } }
+    button {
+      margin-top: 12px; padding: 10px 20px; border: 0; border-radius: 8px; cursor: pointer;
+      background: var(--accent); color: var(--accent-text); font: inherit; font-weight: 600;
+    }
+    button:disabled { opacity: 0.55; cursor: progress; }
+    #status { margin: 12px 0 0; min-height: 1.6em; }
+    #status.error { color: var(--error); }
+    #status.ok { color: var(--ok); }
+    #reply { white-space: pre-wrap; overflow-wrap: anywhere; margin: 0; }
+    #meta { color: var(--muted); font-size: 0.875rem; margin: 8px 0 0; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>ถาม AI ผ่าน ai-api</h1>
+  <p class="lead">หน้าเว็บตัวอย่างหน้าเดียว ส่งคำถามไปที่บริการ ai-api ในเครื่องของคุณ แล้วแสดงคำตอบ</p>
+
+  <section aria-labelledby="h-connect">
+    <h2 id="h-connect" hidden>การเชื่อมต่อ</h2>
+    <div class="row">
+      <div>
+        <label for="api">ที่อยู่ของ ai-api</label>
+        <input id="api" type="url" value="http://127.0.0.1:3000" autocomplete="off">
+      </div>
+      <div>
+        <label for="key">รหัสของบริการ (APP_API_KEY)</label>
+        <input id="key" type="password" autocomplete="off" placeholder="เว้นว่างได้ถ้าบริการไม่ได้ตั้งรหัส">
+      </div>
+    </div>
+    <p class="hint">รหัสอยู่ในหน้านี้เท่านั้น ไม่ถูกบันทึก ปิดหน้าแล้วหายไป อย่าเขียนรหัสลงในไฟล์ของหน้าเว็บ เพราะทุกคนที่เปิดหน้าได้จะอ่านรหัสได้</p>
+  </section>
+
+  <section aria-labelledby="h-ask">
+    <h2 id="h-ask" hidden>คำถาม</h2>
+    <form id="form">
+      <label for="message">คำถาม</label>
+      <textarea id="message" maxlength="8000" required placeholder="พิมพ์คำถามที่นี่"></textarea>
+      <button id="send" type="submit">ส่งคำถาม</button>
+      <p id="status" role="status" aria-live="polite"></p>
+    </form>
+  </section>
+
+  <section aria-labelledby="h-reply">
+    <h2 id="h-reply" style="font-size:1rem;margin:0 0 8px">คำตอบ</h2>
+    <p id="reply">ยังไม่มีคำตอบ</p>
+    <p id="meta"></p>
+  </section>
+</main>
+
+<script>
+  // คำอธิบายของแต่ละรหัสสถานะ เพื่อให้ผู้ใช้รู้ว่าต้องแก้ที่ไหน
+  const PROBLEMS = {
+    400: 'คำถามว่างหรือยาวเกิน 8000 ตัวอักษร',
+    401: 'รหัสของบริการไม่ถูกต้อง',
+    429: 'ส่งถี่เกินไป รอสักครู่แล้วลองใหม่',
+    503: 'บริการยังไม่ได้ตั้ง ANTHROPIC_API_KEY',
+  };
+  const el = (id) => document.getElementById(id);
+
+  function show(text, kind) {
+    el('status').textContent = text;
+    el('status').className = kind || '';
+  }
+
+  el('form').addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const message = el('message').value.trim();
+    if (!message) return show('พิมพ์คำถามก่อน', 'error');
+
+    const headers = { 'Content-Type': 'application/json' };
+    const key = el('key').value;
+    if (key) headers.Authorization = `Bearer ${key}`;
+
+    el('send').disabled = true;
+    show('กำลังถาม...');
+    try {
+      const response = await fetch(`${el('api').value.replace(/\/+$/, '')}/api/chat`, {
+        method: 'POST', headers, body: JSON.stringify({ message }),
+      });
+      const data = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        return show(`ไม่สำเร็จ (${response.status}): ${PROBLEMS[response.status] || data.error || 'บริการตอบข้อผิดพลาด'}`, 'error');
+      }
+      // ใช้ textContent เสมอ คำตอบของโมเดลเป็นข้อความ ไม่ใช่ HTML ที่ควรถูกรัน
+      el('reply').textContent = data.reply || '(คำตอบว่าง)';
+      const tokens = data.usage ? `${data.usage.input_tokens} + ${data.usage.output_tokens} token` : '';
+      el('meta').textContent = [data.model, tokens].filter(Boolean).join(' · ');
+      show('ได้คำตอบแล้ว', 'ok');
+    } catch (error) {
+      // เบราว์เซอร์ไม่บอกสาเหตุของ fetch ที่ล้ม จึงบอกสองสาเหตุที่พบบ่อยที่สุด
+      show('ติดต่อบริการไม่ได้ ตรวจว่า ai-api เปิดอยู่ และที่อยู่ของหน้านี้อยู่ใน ALLOWED_ORIGINS ของบริการ', 'error');
+    } finally {
+      el('send').disabled = false;
+    }
+  });
+</script>
+</body>
+</html>
