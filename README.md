@@ -72,8 +72,9 @@
 
 AI ที่เชื่อมกับสาขาอื่น แต่ละสาขามีแผนที่ บทเรียน และเดโมที่รันได้ ดู [fields/](fields/README.md)
 
-- **หุ่นยนต์ (v0.1):** [แผนที่](fields/robotics/README.md) และ [บทที่ 1 จากหัวใจสู่กลไก](fields/robotics/01-heart-to-mechanism.md) ตามคำสั่งหนึ่งประโยคผ่านห้าชั้นจนถึงมอเตอร์ รันเดโมได้ทันทีโดยไม่ต้องมีฮาร์ดแวร์:
+- **หุ่นยนต์ (v0.2):** [แผนที่](fields/robotics/README.md) และ [บทที่ 1 จากหัวใจสู่กลไก](fields/robotics/01-heart-to-mechanism.md) ตามคำสั่งหนึ่งประโยคผ่านห้าชั้นจนถึงมอเตอร์ รันเดโมได้ทันทีโดยไม่ต้องมีฮาร์ดแวร์:
   `python fields/robotics/heart-to-mechanism/simulate.py "ไปที่ 1 เมตร"`
+  มีหุ่นยนต์ของตัวเอง ใช้ [robokit](fields/robotics/robokit/README.md): วางแผนโปรเจกต์ ด่านตรวจคำสั่งจาก AI จูน PID และตรวจระยะหยุด เริ่มที่ `python hope.py robot plan`
 
 ## เลือกต้นแบบ
 

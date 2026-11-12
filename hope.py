@@ -42,7 +42,8 @@ SKIP_DIRS = {".git", "node_modules", "venv", ".venv", "__pycache__", "dist", "my
 
 # ชุดทดสอบ: unit ไม่ต้องติดตั้งอะไรเพิ่ม (ถ้าไม่มี rank_bm25 จะข้ามข้อที่ต้องใช้)
 SUITES = {
-    "unit": ["test_blueprints.py", "test_thai_search.py", "test_catalog.py", "test_easy_cli.py", "test_robotics_demo.py"],
+    "unit": ["test_blueprints.py", "test_thai_search.py", "test_catalog.py", "test_easy_cli.py", "test_robotics_demo.py",
+             "test_robokit.py"],
     "mock": ["test_mock_e2e.py"],
 }
 SUITES["all"] = SUITES["unit"] + SUITES["mock"]
@@ -298,11 +299,23 @@ def build_parser() -> argparse.ArgumentParser:
     p.set_defaults(func=cmd_test)
     sub.add_parser("check-links", help="ตรวจลิงก์ในเอกสาร").set_defaults(func=cmd_check_links)
     sub.add_parser("check", help="ด่านตรวจก่อน push").set_defaults(func=cmd_check)
+    sub.add_parser("robot", help="เครื่องมือหุ่นยนต์ robokit: plan, gate, tune, stop (ดู: robot --help)",
+                   add_help=False)
     return parser
+
+
+def cmd_robot(argv: list) -> int:
+    """ส่งต่อให้ robokit ทั้งชุด (fields/robotics/robokit) ใช้ไลบรารีมาตรฐานอย่างเดียว"""
+    sys.path.insert(0, str(ROOT / "fields" / "robotics"))
+    from robokit.cli import main as robokit_main
+    return robokit_main(argv)
 
 
 def main(argv=None) -> int:
     _utf8()
+    argv = sys.argv[1:] if argv is None else list(argv)
+    if argv[:1] == ["robot"]:                     # ตัวเลือกทั้งหมดเป็นของ robokit ไม่ให้ argparse ของ hope.py แย่ง
+        return cmd_robot(argv[1:])
     parser = build_parser()
     args = parser.parse_args(argv)
     if not args.command:

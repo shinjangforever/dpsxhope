@@ -1,0 +1,35 @@
+{
+  "name": "แขนกลบนโต๊ะ 2 แกน (x, y ของปลายแขน)",
+  "description": "ตัวอย่างพื้นที่ทำงาน 0.8 x 0.4 m มีเขตห้ามเข้าตรงฐานแขนและจุดวางแก้ว แก้ตัวเลขให้ตรงกับเครื่องจริงก่อนใช้",
+  "units": "เมตร, องศา, วินาที",
+  "ignore_fields": ["confidence", "reason"],
+  "always_allow": ["stop"],
+  "rate_limit_per_s": 5,
+  "actions": {
+    "move_to": {
+      "params": {
+        "x": {"type": "number", "min": -0.4, "max": 0.4, "unit": "m"},
+        "y": {"type": "number", "min": 0.1, "max": 0.5, "unit": "m"},
+        "speed": {"type": "number", "min": 0.02, "max": 0.25, "unit": "m/s", "default": 0.1}
+      },
+      "required": ["x", "y"],
+      "max_step": {"x": 0.3, "y": 0.3}
+    },
+    "gripper": {
+      "params": {
+        "state": {"type": "enum", "values": ["open", "close"]},
+        "force": {"type": "number", "min": 1, "max": 15, "unit": "N", "default": 5}
+      },
+      "required": ["state"]
+    },
+    "wait": {
+      "params": {"seconds": {"type": "number", "min": 0, "max": 10, "unit": "s"}},
+      "required": ["seconds"]
+    },
+    "stop": {}
+  },
+  "keep_out": [
+    {"name": "ฐานแขนกล", "x": [-0.08, 0.08], "y": [0.1, 0.16]},
+    {"name": "จุดวางแก้วน้ำ", "x": [0.25, 0.35], "y": [0.35, 0.45]}
+  ]
+}

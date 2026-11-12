@@ -1,0 +1,17 @@
+# คำสั่งตัวอย่างสำหรับ profiles/desk-arm-2axis.json (บรรทัดที่ขึ้นต้นด้วย # ถูกข้าม)
+# ตำแหน่งปัจจุบันสมมติ: {"x": 0.0, "y": 0.3}
+{"action": "move_to", "params": {"x": 0.1, "y": 0.3}, "confidence": 0.95}
+{"action": "move_to", "params": {"x": 0.1, "y": 0.3, "speed": 0.2}}
+{"action": "gripper", "params": {"state": "close"}}
+{"action": "stop"}
+# --- คำสั่งที่ต้องถูกปฏิเสธ ---
+{"action": "move_to", "params": {"x": 1.5, "y": 0.3}}
+{"action": "move_to", "params": {"x": 0.3, "y": 0.4}}
+{"action": "move_to", "params": {"x": 0.0, "y": 0.13}}
+{"action": "move_to", "params": {"x": NaN, "y": 0.3}}
+{"action": "move_to", "params": {"x": "0.1", "y": 0.3}}
+{"action": "move_to", "params": {"x": 0.1, "y": 0.3, "speed": 2}}
+{"action": "move_to", "params": {"x": 0.1, "y": 0.3}, "override_safety": true}
+{"action": "gripper", "params": {"state": "close", "force": 80}}
+{"action": "self_destruct", "params": {}}
+ขยับแขนไปทางซ้ายหน่อย

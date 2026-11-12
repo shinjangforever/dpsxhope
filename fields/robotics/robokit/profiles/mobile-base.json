@@ -1,0 +1,38 @@
+{
+  "name": "หุ่นยนต์เคลื่อนที่ในห้อง (ตรงกับ action ของ domains/robotics/ros2_llm_bridge.py)",
+  "description": "ห้อง 6 x 6 m ตำแหน่งเป็นพิกัดห้อง มีเขตห้ามเข้าตรงบันได แก้ตัวเลขให้ตรงกับพื้นที่จริงก่อนใช้",
+  "units": "เมตร, องศา, วินาที",
+  "ignore_fields": ["confidence", "reason"],
+  "always_allow": ["stop"],
+  "rate_limit_per_s": 2,
+  "actions": {
+    "move_to": {
+      "params": {
+        "x": {"type": "number", "min": -3.0, "max": 3.0, "unit": "m"},
+        "y": {"type": "number", "min": -3.0, "max": 3.0, "unit": "m"},
+        "speed": {"type": "number", "min": 0.1, "max": 0.6, "unit": "(สัดส่วนของความเร็วสูงสุด)", "default": 0.3}
+      },
+      "required": ["x", "y"],
+      "max_step": {"x": 2.0, "y": 2.0}
+    },
+    "rotate": {
+      "params": {
+        "angle_deg": {"type": "number", "min": 0, "max": 180, "unit": "องศา"},
+        "direction": {"type": "enum", "values": ["cw", "ccw"]}
+      },
+      "required": ["angle_deg", "direction"]
+    },
+    "speak": {
+      "params": {"text": {"type": "string", "max_length": 200}},
+      "required": ["text"]
+    },
+    "wait": {
+      "params": {"seconds": {"type": "number", "min": 0, "max": 30, "unit": "s"}},
+      "required": ["seconds"]
+    },
+    "stop": {}
+  },
+  "keep_out": [
+    {"name": "บันได", "x": [2.0, 3.0], "y": [-3.0, -1.5]}
+  ]
+}

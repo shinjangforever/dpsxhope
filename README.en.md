@@ -51,8 +51,9 @@ Prefer a terminal? `python hope.py setup`, `python hope.py demo`, `python hope.p
 
 AI connected to other fields. Each field has a map, lessons, and a runnable demo (currently in Thai). See [fields/](fields/README.md).
 
-- **Robotics (v0.1):** [map](fields/robotics/README.md) and [lesson 1, from heart to mechanism](fields/robotics/01-heart-to-mechanism.md). It follows one spoken command through five layers down to the motor. Run the demo now, no hardware needed:
+- **Robotics (v0.2):** [map](fields/robotics/README.md) and [lesson 1, from heart to mechanism](fields/robotics/01-heart-to-mechanism.md). It follows one spoken command through five layers down to the motor. Run the demo now, no hardware needed:
   `python fields/robotics/heart-to-mechanism/simulate.py "ไปที่ 1 เมตร"` (or `"move to 1"`)
+  Have your own robot? Use [robokit](fields/robotics/robokit/README.md) (Thai docs): plan a project, gate commands from an AI with a JSON rule file, tune PID, and check stopping distance. Start with `python hope.py robot plan`
 
 ## Choose a blueprint
 
